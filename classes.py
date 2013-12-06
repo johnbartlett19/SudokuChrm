@@ -1,7 +1,7 @@
 #/bin/python
 import copy
 from basics import *
-from simpleColoredChain import createChains, colorChain, printChain, ruleTwo, ruleFour, ruleFive, ruleFiveCombo
+from simpleColoredChain import *
 
 def countHints(cellArray):
     cntArray = [0 for x in range(9)]
@@ -11,7 +11,7 @@ def countHints(cellArray):
                 cntArray[hint] += 1
     return cntArray
 
-class Cell():
+class Cell(object):
     def __init__(self, row, col, square, game):
         self.answer = None
         self.hints = [True for x in range(9)]
@@ -56,7 +56,7 @@ class Cell():
                 count += 1
         return count
 
-class Group():
+class Group(object):
     def __init__(self, num, game):
         self.cells = []
         #self.position = []
@@ -66,6 +66,7 @@ class Group():
     def addCell(self, cell):
         ''' add a cell to this segment (row, col, square) '''
         self.cells.append(cell)
+
     def clearHints(self):
         ''' find current answers in this segment, clear all hints for those answers
             and return True if any changes were made, else return False '''
@@ -78,6 +79,15 @@ class Group():
             if cell.clearHints(answers):
                     change = True
         return change
+
+    def twoHintCellPair(self, hint):
+        pair = []
+        for cell in self.cells:
+            if cell.hints[hint]:
+                pair.append(cell)
+        if len(pair) == 2:
+            return pair
+        return False
 
     def singleRCS(self):
         hintCount = [0 for x in range(0,9)]
@@ -285,13 +295,6 @@ class Group():
                 change = self.cells[cell].clearHints(hintSet) or change
         return change
 
-    #def clearPtPairHints(self, notCells, hint):
-    #    change = False
-    #    for cell in self.cells:
-    #        if cell not in notCells:
-    #            change = cell.clearHints([hint]) or change
-    #    return change
-
     def findPointingPair(self):
         cntArray = countHints(self.cells)
         superSet = []
@@ -355,7 +358,7 @@ class Group():
         @return True if hints were cleared, otherwise False
         """
         if len(hints) == 9:
-            raise ValueError('Received list of Booleans not hint list')
+            raise ValueError('Received list of Booleans not hint list', hints)
         if notHint:  # invert hint array if notHint is true
             hintList = notList(hints)
         else:
@@ -400,6 +403,29 @@ class Square(Group):
     def __name__(self):
         return 'Sqr'
 
+class Chain(object):
+    def __init__(self, hint):
+        self.hint = hint
+        self.nodes = []
+        self.colored = False
+    def __repr__(self):
+        return 'Chain H', self.hint
+    def color(self):
+        # color this chain
+        def colorChain(node, last='Blue'):
+            if last == 'Blue':
+                node.color = 'Red'
+            elif last == 'Red':
+                node.color = 'Blue'
+            for nodeLink in node.links:  # follow the links
+                if nodeLink.color == None:
+                    colorChain(nodeLink, node.color)
+        if len(self.nodes) < 2:
+            raise ValueError('Coloring a chain less than two nodes long')
+        if self.colored:
+            raise ValueError('Coloring a colored chain')
+        colorChain(self.nodes[0])
+
 class Game(object):
     # rewrite this init from scratch.  Set up segs to know which game they belong to.
     # set up cells to know which row, col and square they belong to.  Have to initiate
@@ -430,7 +456,6 @@ class Game(object):
             raise ValueError('Passed cell.getSeg() a bad segType value')
         return
 
-
     def printHints(self, mode):
         printArray = [[[ ' ' for x in range(0,9)] for x in range(0,9)] for x in range(0,9)]
         for cell in self.cells:
@@ -459,8 +484,10 @@ class Game(object):
                 print '=' * 73
             else:
                 print '-' * 73
+
     def __repr__(self):
         return 'Game'
+
     def clearHints(self):
         print 'Clearing hints by answers', self
         for row in self.rows:
@@ -469,6 +496,7 @@ class Game(object):
             col.clearHints()
         for sqr in self.sqrs:
             sqr.clearHints()
+
     def setGameStart(self, inString):
         for cell in self.cells:
             cellNum = 9 * (cell.row.num) + (cell.col.num)
@@ -488,6 +516,7 @@ class Game(object):
                 else:
                     ans[cell.answer] = True
         return good
+
     def printAnswers(self, mode):
         printArray = [[ 0 for x in range(0,9)] for x in range(0,9)]
         for cell in self.cells:
@@ -506,6 +535,7 @@ class Game(object):
                 print printArray[row][col],
             print '|'
         print '-' * 25
+
     def solveSingle(self):
         print 'checking for singles'
         change = False
@@ -520,6 +550,7 @@ class Game(object):
                 print 'Found Single Answer',cell, 'value', cell.answer
                 change = True
         return change
+
     def solveSingleRCS(self):
         print 'checking for single RCS'
         for group in self.segs:
@@ -527,6 +558,7 @@ class Game(object):
                 if seg.singleRCS():
                     return True
         return False
+
     def solveNakedSets(self):
         for setSize in range(2,5):
             print 'Checking for naked sets size', setSize
@@ -535,6 +567,7 @@ class Game(object):
                     if seg.solveNakedSets(setSize):
                         return True
         return False
+
     def solveHiddenSets(self):
         for setSize in range(2,5):
             print 'Checking for hidden sets size ', setSize
@@ -557,6 +590,7 @@ class Game(object):
                     #change = col.clearPtPairHints(cells, hint) or change
                     change = col.clearTheseHints([hint],cells,notCells=True) or change
         return change
+
     def boxLineReduction(self):
         print 'Checking box line reductions'
         change = False
@@ -568,20 +602,28 @@ class Game(object):
                 #change = self.sqrs[sqr].clearPtPairHints(cells, hint) or change
                 change = sqr.clearTheseHints([hint],cells,notCells=True) or change
         return change
+
     def solveXwings(self):
         """
         Find x-wings pairs, clear any hints eliminated by x-wing pair
         @return: True if any hints were deleted, otherwise false
         """
+        self.printHints(False)
+        change = False
         segSets = [self.rows, self.cols] # will search by rows then by columns
         for segs in segSets:
             print 'Checking xWings', segs
-            foundSets = []
-            foundSets = searchSetR(segs, foundSets) # find all x-wing sets (two rows with matching hints per column and vice versa
-            # foundSets is a tuple of the form (hint, cellSet, found) where cellSet is the lead pair of cells and found is the matching segment (not pair)
-            if self.clearSets(foundSets):   # clear hints not in the set
-                return True                 # if any hints were cleared, return True
-        return False
+            # get a list of all cells in this seg set that have only two hints
+            pairs = twoHintSegs(segs, None) # None means all hints
+            # find all x-wing sets (two rows with matching hints per column and vice versa
+            # return list of the four cell combinations
+            for (hint, set_of_one_hint) in pairs:
+                cellSet = []
+                corners = findCorners(set_of_one_hint, cellSet)
+            # now set up to do the clearing.  We can clear for rows and columns, no need to sort it out.
+                change = clearCorners(hint, corners) or change
+        return change
+
     def clearSets(self, foundSets):
         change = False
         print 'xWings foundSets', foundSets
@@ -609,40 +651,20 @@ class Game(object):
             raise ValueError(hint, ptSeg1, ptSeg2)
             #change = seg1.clearTheseHints([hint], cells, notHint=False, notCells=False)
             # pass forward the protected segments, not integers
-            cleanSeg(self, hint, protect):
-            change = seg1.cleacnSeg(hint, (ptSeg1, ptSeg2)) or change
+            #cleanSeg(self, hint, protect):
+            change = seg1.cleanSeg(hint, (ptSeg1, ptSeg2)) or change
             change = seg2.cleanSeg(hint, (ptSeg1, ptSeg2)) or change
 
             #change = cleanSeg(hint, (seg1, seg2),(ptSeg1, ptSeg2), searchSegs) or change
         return change
-    def twoHintSegs(self, hint):
-        '''
-        @param hint: Search segs (row, col, sqr) for pairs of cells with this hint value.  Looking for
-          sets where those two cells are the only two cells in that seg with that hint set
-        @return: list of cell pairs
-        '''
-        twins = []
-        segs = [self.rows, self.cols, self.sqrs]
-        for segType in segs:
-            for segment in segType:
-                hintCnt = 0
-                cellSet = []
-                for cell in segment.cells:
-                    if cell.hints[hint]:
-                        hintCnt += 1
-                        cellSet.append(cell)
-                if hintCnt == 2:
-                    twins.append(cellSet)
-        twinsClean = []
-        for pair in twins:
-            pairSwap = (pair[1],pair[0])
-            if pair not in twinsClean and pairSwap not in twinsClean:
-                twinsClean.append(pair)
-        return twinsClean
+
+    def findXwingQuads(segs, segType, cntrType, foundPairs=[]):
+        if len(segs) < 2:
+            return foundPairs
 
     def findCommonSeg(self,tuple):
         """
-        @param tuple: contains two cells
+        @param tuple: contains two nodes of a chain
         @return tuples (1 or 2) as a list, first element is the segment index these two cells have in common,
           the second is a list of the two positions in that segment where these cells reside (to be protected
           in a clean for example) (e.g. [(row[3],([2,4]),(sqr[3],(3,5))]
@@ -672,34 +694,104 @@ class Game(object):
         return returnSet
 
     def simpleColoring(self):
-        change = False
-        for hint in range(3,4):
-            cellPairs = self.twoHintSegs(hint)
-            unColoredChains = createChains(cellPairs)
-            #print bb
-            for chain in unColoredChains:
-                node = chain[0]
-                colorChain(node, chain)
+        def dedupe_pairs(pairs):
+            """
+            Take a list of cell pairs and eliminate duplications
+            @param pairs: set of cell pairs in the form [[cell1, cell2],[cell3, cell4],...]
+            @return: set of deduped cell pairs in the same format
+            """
+            returnSet = []
+            for pair in pairs:
+                flip = (pair[0],[pair[1][1], pair[1][0]])
+                if pair not in returnSet and flip not in returnSet:
+                    returnSet.append(pair)
+            return returnSet
+        def get_cell_pairs():
+            """
+            Find all cell pairs in the game where the segment (row, col, sqr) has only two cells
+            for any given hint
+            @return: cell pairs in the form [[cell1, cell2],[cell3, cell4],...]
+            """
+            change = False
+            segs = self.rows + self.cols + self.sqrs
+            coloredChains = []
+            for hint in range(3,4):  # **** Only working on known problem, need to open this up to all hints
+                # find all segments where a hint shows up only twice
+                pairs = twoHintSegs(self.rows, hint) + twoHintSegs(self.cols, hint) + twoHintSegs(self.sqrs, hint)
+                #pairs = twoHintSegs(segs, hint) # None means all hints
+                # remove duplications from squares
+                pairs = dedupe_pairs(pairs)
+                print pairs
+                # Pull out the cell-pairs only, dropping the initial hint
+                pairs_no_hint = []
+                for pair in pairs:
+                    pairs_no_hint.append(pair[1])
+            return pairs_no_hint
+
+        def create_chains(pairs):
+            # create chains
+            """
+            Take a set of cell pairs, create nodes of a chain and color the chains.  Return a list
+              of colored chains
+            @param pairs: list of cell pairs in the form [[cell1, cell2],[cell3, cell4],...]
+            @return: list of colored chains in the form[[node1, node2, node3, node4],[node ...], ...]
+            """
+            chains = createChains(pairs)
+            # color the chains
+            for chain in chains:
+                chain.color()
                 printChain(chain)
                 print()
+            return chains
 
-        cc = ruleTwo(chain)
-        print 'Rule Two', cc, hint
+        def rule_two(chain):
+            """
+            Rule 2: This Rules says that if any seg has the same color twice
+              ALL those candidates which share that colour must be OFF.
+            @param hint: active hint for this chain
+            @param chain:
+            @return: change = True if hints were cleared, otherwise false:
+            """
+            change = False
+            pass
+            return change
 
-        dd = ruleFour(chain)
-        if len(dd) > 0:
-            print 'DD', dd
-            result = self.findCommonSeg(dd)
-            #### result should now be a set of common row or col or squares (maybe two out of three)
-            print result
-            cleanSeg(hint, segments, protect, index, game)
-            raise ValueError('Found Simple Colored Chain Rule 4, not implemented', dd)
-        print 'Rule Four', dd, hint
+        def rule_four(chain):
+            """
+            Rule 4: If a segment has both a red and green node, the hint can be deleted in all other
+              cells of the segment
+            @param hint:
+            @param chain:
+            @return: change = True if hints were cleared, otherwise false
+            """
+            change = False
+            #if len(dd) > 0:
+            #    print 'DD', dd
+            #    result = self.findCommonSeg(dd)
+            #    #### result should now be a set of common row or col or squares (maybe two out of three)
+            #    print result
+            #    cleanSeg(hint, segments, protect, index, game)
+            #    raise ValueError('Found Simple Colored Chain Rule 4, not implemented', dd)
+            #print 'Rule Four', dd, hint
+            return change
 
-        twoHintCells = findHintCells(hint,game['Cells'])
-        ee = ruleFive(chain, twoHintCells)
-        print 'Rule Five', ee, hint
+        def rule_five(chain):
+            """
+            Rule 5:  If a cell is visible by both a red and green cell of a chain, then the hint can be
+              eliminated in that cell
+            @return: change = True if hints were cleared, otherwise false
+            """
+            change = False
+            return change
 
-        raise ValueError
+        change = False
+        pairs = get_cell_pairs()
+        chains = create_chains(pairs)
+        for chain in chains:
+            change = rule_two(chain) or change
+            change = rule_four(chain) or change
+            change = rule_five(chain) or change
+        # need to put the hint into the chain, go back and figure out where that belongs
         return change
+
 

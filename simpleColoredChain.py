@@ -1,7 +1,6 @@
 #/bin/python
 import copy
-from yWings00 import findVisibleCells
-from yWings00 import findCommonCells
+from yWings import findVisibleCells, findCommonCells
 
 class ChainNode(object):
     def __init__(self, cell):
@@ -33,7 +32,7 @@ class ChainNode(object):
 #            twinsClean.append(pair)
 #    return twinsClean
 
-def findChain(node, chainSet):
+def findChain(node, chainSet=[]):
     chainSet.append(node)
     for link in node.links:
         if link not in chainSet:
@@ -41,7 +40,16 @@ def findChain(node, chainSet):
     return chainSet
     
 
-def createChains(pairs):
+def createChains(hint, pairs):
+    """
+    Takes a list of cell pairs as input, all with the same hint, and creates the chain links
+    First part builds a dictionary that creates a node for each cell, and links that node
+     to each other node where the chain connects
+    Nodes are then extracted from the dictionary into a list
+    Chains are then built from the node list and put into a list of chains, which is returned
+    @param pairs: in the form [[cell1, cell2],[cell3, cell4] ...]
+    @return: chains: in the form [[chain],[chain],...]
+    """
     chainDict = {}
     for pair in pairs:
         for cell in pair:
@@ -56,15 +64,17 @@ def createChains(pairs):
     nodeSet = []
     for cell in chainDict:
         nodeSet.append(chainDict[cell])
-    returnSet = []
+    # now use this nodeSet (set of nodes) to build the chains
+    returnSet = [] # to collect up the chain objects
+    # take first node in the list, follow and find the set that constitute a chain, then
+    #  remove those nodes from the nodeSet
     while len(nodeSet):
-        node = nodeSet[0]
-        chainSet = []
-        findChain(node, chainSet)
-        returnSet.append(chainSet)
+        chain = Chain(hint)
+        chain.nodes = findChain(nodeSet[0])
+        returnSet.append(chain)
         newNodeSet = []
         for node in nodeSet:
-            if node not in chainSet:
+            if node not in chain.nodes:
                 newNodeSet.append(node)
         nodeSet = newNodeSet
     return returnSet
@@ -75,16 +85,16 @@ def allColored(chain):
                 return False
         return True
 
-def colorChain(node, chain, last='Blue'):
-    if node.color != None:  # color this one
-        raise ValueError ('Node should be uncolored')
-    if last == 'Blue':
-        node.color = 'Red'
-    elif last == 'Red':
-        node.color = 'Blue'
-    for nodeLink in node.links:  # follow the links
-        if nodeLink.color == None:
-            colorChain(nodeLink, chain, node.color)              
+#def colorChain(node, chain, last='Blue'):
+#    if node.color != None:  # color this one
+#        raise ValueError ('Node should be uncolored')
+#    if last == 'Blue':
+#        node.color = 'Red'
+#    elif last == 'Red':
+#        node.color = 'Blue'
+#    for nodeLink in node.links:  # follow the links
+#        if nodeLink.color == None:
+#            colorChain(nodeLink, chain, node.color)
 
 
 ''' Rules have to be run on single chains.  Need to separate out chains

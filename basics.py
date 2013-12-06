@@ -140,58 +140,115 @@ def searchTheRestR(hint, cellSet, segSet):
     foundSeg = search(hint, segSet, protectSet)
     return foundSeg
 
-def searchSetR(segSet, foundSets=[]):
-    if len(segSet) < 2:
-        return foundSets
+def twoHintSegs(segs, hint):
+    '''
+    @param hint: Search segs (row, col, or sqr) for pairs of cells with this hint value or range.  Looking for
+      sets where those two cells are the only two cells in that seg with that hint set
+    @return: list of cell pairs
+    '''
+    returnSet = []
+    if hint:
+        hnt_range = range(hint,hint+1)
+    else:
+        hnt_range = range(9)
+    for hint in hnt_range:
+        hintCellSet = []
+        for segment in segs:
+            hintCnt = 0
+            cellSet = []
+            for cell in segment.cells:
+                if cell.hints[hint]:
+                    hintCnt += 1
+                    cellSet.append(cell)
+            if hintCnt == 2:
+                hintCellSet.append(cellSet)
+        returnSet.append((hint,hintCellSet))
+    return returnSet
+
+def is_xwing_quad(pair1, pair2):
+    """
+    Take two pair of cells, compare columns and rows, return true if these four make an xWing
+      quad.  Routine independent of search direction.  Does not check hints, assumes this
+      has already been done, just looking at rows and columns
+    @param pair1: first pair of cells (in a common row or column)
+    @param pair2: second pair of cells (in a common row or column)
+    @return: True or false - is this an xWing quad
+    """
+    pair2Rows = [pair2[0].row,pair2[1].row]
+    pair2Cols = [pair2[0].col,pair2[1].col]
+    if pair1[0].row in pair2Rows and pair1[1].row in pair2Rows:
+        return True
+    elif pair1[0].col in pair2Cols and pair1[1].col in pair2Cols:
+        return True
+    return False
+
+def findCorners(pairs, cellSet):
+    """
+    Find four corners of an xWing and return the four cells
+    @param pairs: [(hint, [cell1, cell2], [cell3, cell4]) ... ]
+    @return: cellSet - list of four-cell tuples in xWing
+    """
+    if len(pairs) < 2:
+        return cellSet
+    first = pairs[0]
+
+    for second in pairs[1:]:
+        if is_xwing_quad(first,second):
+            cellSet.append((first,second))
+    return findCorners(pairs[1:], cellSet)
+
+def clearCorners(hint, corners):
+    """
+    corners input in the form [[cell1, cell2], [cell3, cell4]]
+    @param corners:
+    @return:
+    """
+    def find_four_segs(cells):
+        """
+        Take four cells of an x-wing set and return the two rows and two columns (segments
+        associated with that square
+        @param cells: four cells to process in a list
+        @return: four segments in a list
+        """
+        segs = []
+        for cell in cells:
+            if cell.row not in segs:
+                segs.append(cell.row)
+            if cell.col not in segs:
+                segs.append(cell.col)
+        if len(segs) != 4:
+            raise ValueError('Too many segs found in cell set, not x-wings square')
+        return(segs)
+    def clear_segs(hint, segs, protect):
+        """
+        Clear the hint 'hint' from each row and column in segs, but protect the four cells in 'protect'
+        @param hint: hint to be cleared
+        @param segs: four segments that need to be checked
+        @param protect: four cells where hint should be protected
+        @return: True or False, True if a change was made, False otherwise
+        """
+        change = False
+        for seg in segs:
+            change = seg.clearTheseHints(hint, protect, notHint=False, notCells=True) or change
+        return change
+    change = False
+    for segSet in corners:
+        cells = segSet[0] + segSet[1]
+        fourSegs = find_four_segs(cells)
+        print 'SegSet', segSet, 'Corners', corners
+        print 'Checking xWing set', hint, cells
+        change = clear_segs([hint], fourSegs, cells) or change
+    return change
+
+def findPairs(segs, pairSets=[]):
     for hint in range(9):
-        hintCnt = 0
-        cellSet = []
-        for cell in segSet[0].cells:
-            if cell.hints[hint] != None:
-                cellSet.append(cell)
-        if len(cellSet) == 2:
-            found = searchTheRestR(hint, cellSet, segSet[1:])
-            if found:
-                foundSets.append((hint, cellSet, found))
-                asdf = 1
-    return searchSetR(segSet[1:], foundSets)
-
-#def clearSets(foundSets, game):
-#    change = False
-#    for foundSet in foundSets:
-#        if foundSet[1][0].row == foundSet[1][1].row:
-#            #rows match, was searching by row
-#            #print 'Found xwing set', foundSet
-#            ptSeg1 = foundSet[1][0].row
-#            ptSeg2 = foundSet[2]
-#            seg1 = foundSet[1][0].col
-#            seg2 = foundSet[1][1].col
-#            index = 'Cols'
-#            hint = foundSet[0]
-#            change = cleanSeg(hint, (seg1, seg2), (ptSeg1, ptSeg2), index, game) or change
-#        elif foundSet[1][0].col == foundSet[1][1].col:
-#            # columns match, was searching by col
-#            ptSeg1 = foundSet[1][0].col
-#            ptSeg2 = foundSet[2]
-#            seg1 = foundSet[1][0].row
-#            seg2 = foundSet[1][1].row
-#            index = 'Rows'
-#            hint = foundSet[0]
-#            change = cleanSeg(hint, (seg1, seg2),(ptSeg1, ptSeg2), index, game) or change
-#        else:
-#            raise ValueError ('Line 580')
-#    return change
-
-#def cleanSeg(hint, segments, protect, searchSegs):
-#    change = False
-#    for seg in segments:
-#        for x in range(9):
-#            cell = searchSegs[seg].cells[x]
-#            if cell.hints[hint] != None and x not in protect:
-#                cell.hints[hint] = None
-#                change = True
-#                print 'Clearing hint:',hint,'in cell', cell, 'Segs:',searchSegs, segments, 'Protect', protect
-#    return change
+        for seg in segs:
+            pair = [hint]
+            cellPair = findPairs(seg, hint)
+            if cellPair:
+                pair.append(cellPair)
+                pairSets.append(pair)
+    return pairSets
 
 def notList(set):
     """
@@ -207,7 +264,6 @@ def notList(set):
 def openWeb(inString):
     import webbrowser
     new = 2 # open in a new tab, if possible
-    ''' http://www.scanraid.com/sudoku.htm?bd=800207000500400020010000003080000460000901000025000010400000090060003002000509008 '''
     beginning = 'http://www.scanraid.com/sudoku.htm?bd='
     urlString = ''
     for ans in inString:
