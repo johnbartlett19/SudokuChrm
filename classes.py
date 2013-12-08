@@ -403,13 +403,85 @@ class Square(Group):
     def __name__(self):
         return 'Sqr'
 
+class ChainNode(object):
+    def __init__(self, cell):
+        self.cell = cell
+        self.color = None
+        self.links = []
+    def __repr__(self):
+        return 'ChNode-' + str(self.cell) + '-' + str(self.color)
+    def __len__(self):
+        return len(self.links)
+    def addLink(self, node):
+            self.links.append(node)
+    # def rule_two(self):
+    #     """
+    #     Rule 2: This Rules says that if any seg has the same color twice
+    #       ALL those candidates which share that colour must be OFF.
+    #     @param hint: active hint for this chain
+    #     @param chain:
+    #     @return: change = True if hints were cleared, otherwise false:
+    #     """
+    #     def find_rule_two(nodes):
+    #         if len(nodes) < 2:
+    #             return False
+    #         lead = node[0]
+    #         for node in nodes[1:]:
+    #             if nodeComp(lead,node) and lead.color == node.color:
+    #                 print 'Chain[0]', chain[0], 'Node', node
+    #                 return(lead, node)
+    #             return find_rule_two(nodes[1:])
+    #         return False
+    #     change = False
+    #     nodes = find_rule_two(self.nodes)
+    #     if nodes:
+    #         # clear hints in these two nodes, mark change as true, return change
+    #         for node in nodes:
+    #
+    #         asdf = 1
+    # def rule_four(self):
+    #     """
+    #     Rule 4: If a segment has both a red and green node, the hint can be deleted in all other
+    #       cells of the segment
+    #     @param hint:
+    #     @param chain:
+    #     @return: change = True if hints were cleared, otherwise false
+    #     """
+    #     change = False
+    #     #if len(dd) > 0:
+    #     #    print 'DD', dd
+    #     #    result = self.findCommonSeg(dd)
+    #     #    #### result should now be a set of common row or col or squares (maybe two out of three)
+    #     #    print result
+    #     #    cleanSeg(hint, segments, protect, index, game)
+    #     #    raise ValueError('Found Simple Colored Chain Rule 4, not implemented', dd)
+    #     #print 'Rule Four', dd, hint
+    #     return change
+    #
+    # def rule_five(self):
+    #     """
+    #     Rule 5:  If a cell is visible by both a red and green cell of a chain, then the hint can be
+    #       eliminated in that cell
+    #     @return: change = True if hints were cleared, otherwise false
+    #     """
+    #     change = False
+    #     return change
+
+
 class Chain(object):
-    def __init__(self, hint):
+    def __init__(self, hint, node):
+        def build(chain, node):
+            chain.nodes.append(node)
+            for link in node.links:
+                if link not in chain.nodes:
+                    build(chain, link)
         self.hint = hint
         self.nodes = []
-        self.colored = False
+        self.name = str(node)
+        build(self, node)
+
     def __repr__(self):
-        return 'Chain H', self.hint
+        return 'Chain-H' + str(self.hint) + '-' + self.name
     def color(self):
         # color this chain
         def colorChain(node, last='Blue'):
@@ -422,9 +494,61 @@ class Chain(object):
                     colorChain(nodeLink, node.color)
         if len(self.nodes) < 2:
             raise ValueError('Coloring a chain less than two nodes long')
-        if self.colored:
+        if self.nodes[0].color != None:
             raise ValueError('Coloring a colored chain')
         colorChain(self.nodes[0])
+
+    def rule_two(self):
+        """
+        Rule 2: This Rules says that if any seg has the same color twice
+          ALL those candidates which share that colour must be OFF.
+        @return: change = True if hints were cleared, otherwise false:
+        """
+        def find_rule_two(nodes):
+            if len(nodes) < 2:
+                return False
+            lead = nodes[0]
+            for node in nodes[1:]:
+                if nodeComp(lead,node) and lead.color == node.color:
+                    return(lead, node)
+                return find_rule_two(nodes[1:])
+            return False
+        change = False
+        nodes = find_rule_two(self.nodes)
+        if nodes:
+            # clear hints in these two nodes, mark change as true, return change
+            for node in nodes:
+                change = node.cell.clearHints([self.hint]) or change
+        return change
+
+    def rule_four(self):
+        """
+        Rule 4: If a segment has both a red and green node, the hint can be deleted in all other
+          cells of the segment
+        @param hint:
+        @param chain:
+        @return: change = True if hints were cleared, otherwise false
+        """
+        change = False
+        #if len(dd) > 0:
+        #    print 'DD', dd
+        #    result = self.findCommonSeg(dd)
+        #    #### result should now be a set of common row or col or squares (maybe two out of three)
+        #    print result
+        #    cleanSeg(hint, segments, protect, index, game)
+        #    raise ValueError('Found Simple Colored Chain Rule 4, not implemented', dd)
+        #print 'Rule Four', dd, hint
+        return change
+
+    def rule_five(self):
+        """
+        Rule 5:  If a cell is visible by both a red and green cell of a chain, then the hint can be
+          eliminated in that cell
+        @return: change = True if hints were cleared, otherwise false
+        """
+        change = False
+        return change
+
 
 class Game(object):
     # rewrite this init from scratch.  Set up segs to know which game they belong to.
@@ -697,100 +821,154 @@ class Game(object):
         def dedupe_pairs(pairs):
             """
             Take a list of cell pairs and eliminate duplications
-            @param pairs: set of cell pairs in the form [[cell1, cell2],[cell3, cell4],...]
+            @param pairs: set of cell pairs in the form [(hint,[[cell1, cell2],[cell3, cell4],...]),...]
             @return: set of deduped cell pairs in the same format
             """
             returnSet = []
-            for pair in pairs:
-                flip = (pair[0],[pair[1][1], pair[1][0]])
-                if pair not in returnSet and flip not in returnSet:
-                    returnSet.append(pair)
+            for hint, cellSet in pairs:
+                returnCellSet = []
+                for pair in cellSet:
+                    flip = [pair[1],pair[0]]
+                    if pair not in returnCellSet and flip not in returnCellSet:
+                        returnCellSet.append(pair)
+                returnSet.append((hint,returnCellSet))
             return returnSet
+
         def get_cell_pairs():
             """
             Find all cell pairs in the game where the segment (row, col, sqr) has only two cells
             for any given hint
             @return: cell pairs in the form [[cell1, cell2],[cell3, cell4],...]
             """
-            change = False
             segs = self.rows + self.cols + self.sqrs
-            coloredChains = []
-            for hint in range(3,4):  # **** Only working on known problem, need to open this up to all hints
-                # find all segments where a hint shows up only twice
-                pairs = twoHintSegs(self.rows, hint) + twoHintSegs(self.cols, hint) + twoHintSegs(self.sqrs, hint)
-                #pairs = twoHintSegs(segs, hint) # None means all hints
-                # remove duplications from squares
-                pairs = dedupe_pairs(pairs)
-                print pairs
-                # Pull out the cell-pairs only, dropping the initial hint
-                pairs_no_hint = []
-                for pair in pairs:
-                    pairs_no_hint.append(pair[1])
-            return pairs_no_hint
+            # for hint in range(9):
+            # find all segments where a hint shows up only twice
+            pairs = twoHintSegs(segs, None)
+            # remove duplications from squares
+            pairs2 = dedupe_pairs(pairs)
+            return pairs2
 
         def create_chains(pairs):
             # create chains
             """
             Take a set of cell pairs, create nodes of a chain and color the chains.  Return a list
               of colored chains
-            @param pairs: list of cell pairs in the form [[cell1, cell2],[cell3, cell4],...]
-            @return: list of colored chains in the form[[node1, node2, node3, node4],[node ...], ...]
+            @param pairs: list of cell pairs in the form [(hint,[[cell1, cell2],[cell3, cell4]...]),(hint, [[...]
+            @return: list of colored chains in the form[chain,chain,chain ...]
             """
-            chains = createChains(pairs)
-            # color the chains
-            for chain in chains:
+            # iterate from here over the 9 sets in 'pairs' and for each one create chains
+            chainSet = []
+            for hintPairSet in pairs:
+                chains = createChains(hintPairSet)
+                chainSet = chainSet + chains
+            for chain in chainSet:
                 chain.color()
-                printChain(chain)
-                print()
-            return chains
+            return chainSet
 
-        def rule_two(chain):
-            """
-            Rule 2: This Rules says that if any seg has the same color twice
-              ALL those candidates which share that colour must be OFF.
-            @param hint: active hint for this chain
-            @param chain:
-            @return: change = True if hints were cleared, otherwise false:
-            """
-            change = False
-            pass
-            return change
+            # chains = createChains(pairs)
+            # # color the chains
+            # for chain in chains:
+            #     chain.color()
+            #     printChain(chain)
+            #     print()
+            # return chains
 
-        def rule_four(chain):
+        def createChains(hintPairSet):
             """
-            Rule 4: If a segment has both a red and green node, the hint can be deleted in all other
-              cells of the segment
-            @param hint:
-            @param chain:
-            @return: change = True if hints were cleared, otherwise false
+            Takes a list of cell pairs as input, all with the same hint, and creates the chain links
+            First part builds a dictionary that creates a node for each cell, and links that node
+             to each other node where the chain connects
+            Nodes are then extracted from the dictionary into a list
+            Chains are then built from the node list and put into a list of chains, which is returned
+            @param pairs: in the form (hint, [cell1, cell2],[cell3, cell4] ...)
+            @return: chains: in the form [chain1,chain2,chain3,...]
             """
-            change = False
-            #if len(dd) > 0:
-            #    print 'DD', dd
-            #    result = self.findCommonSeg(dd)
-            #    #### result should now be a set of common row or col or squares (maybe two out of three)
-            #    print result
-            #    cleanSeg(hint, segments, protect, index, game)
-            #    raise ValueError('Found Simple Colored Chain Rule 4, not implemented', dd)
-            #print 'Rule Four', dd, hint
-            return change
+            chainDict = {}
+            hint, cellSet = hintPairSet
+            for cellPair in cellSet:
+                for cell in cellPair:
+                    if cell not in chainDict:
+                        chainDict[cell] = ChainNode(cell)
+                    # try:
+                    #     node = chainDict[cell]
+                    # except:
+                    #     node = ChainNode(cell)
+                    #     chainDict[cell] = node
+                chainDict[cellPair[0]].addLink(chainDict[cellPair[1]])
+                chainDict[cellPair[1]].addLink(chainDict[cellPair[0]])
+            # Convert to a list of nodes
+            nodeSet = []
+            for cell in chainDict:
+                nodeSet.append(chainDict[cell])
+            # now use this nodeSet (set of nodes) to build the chains
+            # take first node in the list, follow and find the set that constitute a chain, then
+            #  remove those nodes from the nodeSet
+            chainSet = []
+            while len(nodeSet):
+                newChain = Chain(hint, nodeSet[0])
+                chainSet.append(newChain)
+                newNodeSet = []
+                for node in nodeSet:
+                    if node not in newChain.nodes:
+                        newNodeSet.append(node)
+                nodeSet = newNodeSet
+            return chainSet
 
-        def rule_five(chain):
-            """
-            Rule 5:  If a cell is visible by both a red and green cell of a chain, then the hint can be
-              eliminated in that cell
-            @return: change = True if hints were cleared, otherwise false
-            """
-            change = False
-            return change
+        # def rule_two(chain):
+        #     """
+        #     Rule 2: This Rules says that if any seg has the same color twice
+        #       ALL those candidates which share that colour must be OFF.
+        #     @param hint: active hint for this chain
+        #     @param chain:
+        #     @return: change = True if hints were cleared, otherwise false:
+        #     """
+        #     change = False
+        #     pass
+        #     #return change
+        #     if len(chain) < 2:
+        #         return False
+        #     for node in chain[1:]:
+        #         if nodeComp(chain[0],node) and chain[0].color == node.color:
+        #             print 'Chain[0]', chain[0], 'Node', node
+        #             raise ValueError ('Simple Colored Chain Rule Two found, still not implemented')
+        #             return True
+        #         return ruleTwo(chain[1:])
+        #
+        # def rule_four(chain):
+        #     """
+        #     Rule 4: If a segment has both a red and green node, the hint can be deleted in all other
+        #       cells of the segment
+        #     @param hint:
+        #     @param chain:
+        #     @return: change = True if hints were cleared, otherwise false
+        #     """
+        #     change = False
+        #     #if len(dd) > 0:
+        #     #    print 'DD', dd
+        #     #    result = self.findCommonSeg(dd)
+        #     #    #### result should now be a set of common row or col or squares (maybe two out of three)
+        #     #    print result
+        #     #    cleanSeg(hint, segments, protect, index, game)
+        #     #    raise ValueError('Found Simple Colored Chain Rule 4, not implemented', dd)
+        #     #print 'Rule Four', dd, hint
+        #     return change
+        #
+        # def rule_five(chain):
+        #     """
+        #     Rule 5:  If a cell is visible by both a red and green cell of a chain, then the hint can be
+        #       eliminated in that cell
+        #     @return: change = True if hints were cleared, otherwise false
+        #     """
+        #     change = False
+        #     return change
 
         change = False
         pairs = get_cell_pairs()
         chains = create_chains(pairs)
         for chain in chains:
-            change = rule_two(chain) or change
-            change = rule_four(chain) or change
-            change = rule_five(chain) or change
+            change = chain.rule_two() or change
+            change = chain.rule_four() or change
+            change = chain.rule_five() or change
         # need to put the hint into the chain, go back and figure out where that belongs
         return change
 

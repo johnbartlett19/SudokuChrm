@@ -1,4 +1,3 @@
-
 #/bin/python
 from classes import *
 
@@ -144,10 +143,10 @@ def twoHintSegs(segs, hint):
     '''
     @param hint: Search segs (row, col, or sqr) for pairs of cells with this hint value or range.  Looking for
       sets where those two cells are the only two cells in that seg with that hint set
-    @return: list of cell pairs
+    @return: list of cell pairs with hint for that pair (hint, [cell1, cell2])
     '''
     returnSet = []
-    if hint:
+    if hint != None:
         hnt_range = range(hint,hint+1)
     else:
         hnt_range = range(9)
@@ -235,8 +234,8 @@ def clearCorners(hint, corners):
     for segSet in corners:
         cells = segSet[0] + segSet[1]
         fourSegs = find_four_segs(cells)
-        print 'SegSet', segSet, 'Corners', corners
-        print 'Checking xWing set', hint, cells
+        #print 'SegSet', segSet, 'Corners', corners
+        #print 'Checking xWing set', hint, cells
         change = clear_segs([hint], fourSegs, cells) or change
     return change
 
