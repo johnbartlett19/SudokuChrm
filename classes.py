@@ -414,59 +414,6 @@ class ChainNode(object):
         return len(self.links)
     def addLink(self, node):
             self.links.append(node)
-    # def rule_two(self):
-    #     """
-    #     Rule 2: This Rules says that if any seg has the same color twice
-    #       ALL those candidates which share that colour must be OFF.
-    #     @param hint: active hint for this chain
-    #     @param chain:
-    #     @return: change = True if hints were cleared, otherwise false:
-    #     """
-    #     def find_rule_two(nodes):
-    #         if len(nodes) < 2:
-    #             return False
-    #         lead = node[0]
-    #         for node in nodes[1:]:
-    #             if nodeComp(lead,node) and lead.color == node.color:
-    #                 print 'Chain[0]', chain[0], 'Node', node
-    #                 return(lead, node)
-    #             return find_rule_two(nodes[1:])
-    #         return False
-    #     change = False
-    #     nodes = find_rule_two(self.nodes)
-    #     if nodes:
-    #         # clear hints in these two nodes, mark change as true, return change
-    #         for node in nodes:
-    #
-    #         asdf = 1
-    # def rule_four(self):
-    #     """
-    #     Rule 4: If a segment has both a red and green node, the hint can be deleted in all other
-    #       cells of the segment
-    #     @param hint:
-    #     @param chain:
-    #     @return: change = True if hints were cleared, otherwise false
-    #     """
-    #     change = False
-    #     #if len(dd) > 0:
-    #     #    print 'DD', dd
-    #     #    result = self.findCommonSeg(dd)
-    #     #    #### result should now be a set of common row or col or squares (maybe two out of three)
-    #     #    print result
-    #     #    cleanSeg(hint, segments, protect, index, game)
-    #     #    raise ValueError('Found Simple Colored Chain Rule 4, not implemented', dd)
-    #     #print 'Rule Four', dd, hint
-    #     return change
-    #
-    # def rule_five(self):
-    #     """
-    #     Rule 5:  If a cell is visible by both a red and green cell of a chain, then the hint can be
-    #       eliminated in that cell
-    #     @return: change = True if hints were cleared, otherwise false
-    #     """
-    #     change = False
-    #     return change
-
 
 class Chain(object):
     def __init__(self, hint, node):
@@ -513,6 +460,7 @@ class Chain(object):
                     return(lead, node)
                 return find_rule_two(nodes[1:])
             return False
+        print 'Checking coloring Rule 2'
         change = False
         nodes = find_rule_two(self.nodes)
         if nodes:
@@ -529,15 +477,24 @@ class Chain(object):
         @param chain:
         @return: change = True if hints were cleared, otherwise false
         """
+        def find_rule_four(nodes):
+            if len(nodes) < 2:
+                return False
+            lead = nodes[0]
+            for node in nodes[1:]:
+                commonSeg = nodeComp(lead,node)
+                if commonSeg and lead.color != node.color:
+                    return(lead, node, commonSeg)
+                return find_rule_four(nodes[1:])
+            return False
+        print 'Checking coloring Rule 4'
         change = False
-        #if len(dd) > 0:
-        #    print 'DD', dd
-        #    result = self.findCommonSeg(dd)
-        #    #### result should now be a set of common row or col or squares (maybe two out of three)
-        #    print result
-        #    cleanSeg(hint, segments, protect, index, game)
-        #    raise ValueError('Found Simple Colored Chain Rule 4, not implemented', dd)
-        #print 'Rule Four', dd, hint
+        nodes = find_rule_four(self.nodes)
+        if nodes:
+            # clear hints in all cells of the segment except the two in the chain
+            cells = [nodes[0].cell, nodes[1].cell]
+            seg = nodes[2]
+            change = seg.clearTheseHints([self.hint], cells, notCells=True) or change
         return change
 
     def rule_five(self):
@@ -546,9 +503,28 @@ class Chain(object):
           eliminated in that cell
         @return: change = True if hints were cleared, otherwise false
         """
+        #for each pair of cells in the chain (recursive function again):
+        #  find cells with different colors
+        #  find cells visible to each cell
+        #  find cells common in visibility
+        #  clear hint in commonly visible cells
+        #  return True if a change was made
+        def find_rule_five(nodes, hint, change):
+            if len(nodes) < 2:
+                return change
+            lead = nodes[0]
+            for node in nodes[1:]:
+                if lead.color != node.color:
+                    vis1 = findVisibleCells(lead.cell)
+                    vis2 = findVisibleCells(node.cell)
+                    visible_to_both = findCommonCells(vis1, vis2)
+                    if visible_to_both:
+                        for cell in visible_to_both:
+                            change = cell.clearHints([self.hint]) or change
+            return find_rule_five(nodes[1:], hint, change)
+        print 'Checking coloring Rule 5'
         change = False
-        return change
-
+        return find_rule_five(self.nodes,self.hint,change)
 
 class Game(object):
     # rewrite this init from scratch.  Set up segs to know which game they belong to.
@@ -732,7 +708,6 @@ class Game(object):
         Find x-wings pairs, clear any hints eliminated by x-wing pair
         @return: True if any hints were deleted, otherwise false
         """
-        self.printHints(False)
         change = False
         segSets = [self.rows, self.cols] # will search by rows then by columns
         for segs in segSets:
@@ -914,54 +889,7 @@ class Game(object):
                 nodeSet = newNodeSet
             return chainSet
 
-        # def rule_two(chain):
-        #     """
-        #     Rule 2: This Rules says that if any seg has the same color twice
-        #       ALL those candidates which share that colour must be OFF.
-        #     @param hint: active hint for this chain
-        #     @param chain:
-        #     @return: change = True if hints were cleared, otherwise false:
-        #     """
-        #     change = False
-        #     pass
-        #     #return change
-        #     if len(chain) < 2:
-        #         return False
-        #     for node in chain[1:]:
-        #         if nodeComp(chain[0],node) and chain[0].color == node.color:
-        #             print 'Chain[0]', chain[0], 'Node', node
-        #             raise ValueError ('Simple Colored Chain Rule Two found, still not implemented')
-        #             return True
-        #         return ruleTwo(chain[1:])
-        #
-        # def rule_four(chain):
-        #     """
-        #     Rule 4: If a segment has both a red and green node, the hint can be deleted in all other
-        #       cells of the segment
-        #     @param hint:
-        #     @param chain:
-        #     @return: change = True if hints were cleared, otherwise false
-        #     """
-        #     change = False
-        #     #if len(dd) > 0:
-        #     #    print 'DD', dd
-        #     #    result = self.findCommonSeg(dd)
-        #     #    #### result should now be a set of common row or col or squares (maybe two out of three)
-        #     #    print result
-        #     #    cleanSeg(hint, segments, protect, index, game)
-        #     #    raise ValueError('Found Simple Colored Chain Rule 4, not implemented', dd)
-        #     #print 'Rule Four', dd, hint
-        #     return change
-        #
-        # def rule_five(chain):
-        #     """
-        #     Rule 5:  If a cell is visible by both a red and green cell of a chain, then the hint can be
-        #       eliminated in that cell
-        #     @return: change = True if hints were cleared, otherwise false
-        #     """
-        #     change = False
-        #     return change
-
+        print 'Using simple coloring to check color rules'
         change = False
         pairs = get_cell_pairs()
         chains = create_chains(pairs)

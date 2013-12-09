@@ -73,11 +73,11 @@ def nodeComp(node1,node2):
     @return: True if both nodes are in the same row, col or sqr, otherwise False
     """
     if node1.cell.row == node2.cell.row:
-        return True
+        return node1.cell.row
     elif node1.cell.col == node2.cell.col:
-        return True
+        return node1.cell.col
     elif node1.cell.sqr == node2.cell.sqr:
-        return True
+        return node1.cell.sqr
     return False
 
 # def ruleTwo(chain):
