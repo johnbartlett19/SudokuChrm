@@ -2,14 +2,21 @@
 import copy
 from basics import *
 from simpleColoredChain import *
+#from yWings import *
 
-def countHints(cellArray):
-    cntArray = [0 for x in range(9)]
-    for cell in cellArray:
-        for hint in range(9):
-            if cell.hints[hint] != None:
-                cntArray[hint] += 1
-    return cntArray
+# TODO add doc strings to any routines that do not have them
+#def countHints(cellArray):
+#    """
+#    Counts the number of hints of each type in an array of cells
+#    @param cellArray:
+#    @return:
+#    """
+#    cntArray = [0 for x in range(9)]
+#    for cell in cellArray:
+#        for hint in range(9):
+#            if cell.hints[hint] != None:
+#                cntArray[hint] += 1
+#    return cntArray
 
 class Cell(object):
     def __init__(self, row, col, square, game):
@@ -38,6 +45,7 @@ class Cell(object):
         ''' set the answer for this cell'''
         self.answer = ans
         self.hints = [None for x in range(9)]
+
     def clearHints(self, hints):
         ''' clear the numbered hints in hints from this cell, return True if
             changes were made, else return False '''
@@ -49,6 +57,7 @@ class Cell(object):
         if self.countHints() == 0 and self.answer == None:
             raise ValueError('Just cleared last hint in a cell', self)
         return change
+
     def countHints(self):
         count = 0
         for x in range(9):
@@ -79,6 +88,13 @@ class Group(object):
             if cell.clearHints(answers):
                     change = True
         return change
+
+    def hints_in_seg(self, hint):
+        cellCount = 0
+        for cell in self.cells:
+            if cell.hints[hint]:
+                cellCount += 1
+        return cellCount
 
     def twoHintCellPair(self, hint):
         pair = []
@@ -131,14 +147,14 @@ class Group(object):
                             change = True
         return change
 
-    def solveNakedSets(self, count):
-        '''
-        Naked sets are sets of 2, 3 or 4 cells with 2, 3 or 4 hints total.  If a naked set exists, the hints in
-         the naked set can be removed from any cells not in the naked set
-        @param count: number of cells & hints for this search
-        @return: change (True/False) if a change was made
-        '''
-        def noEmptySets(cellArray):
+    def solve_naked_sets(self, count):
+        """
+        second generation code, using the 'all_combo' function for searching through sets in combinations
+        Check this segment (self) for naked pairs, triples, quads
+        @param count: size of naked set (in cells) we are searching
+        @return: True if hint changes were made, otherwise false
+        """
+        def remove_empty_cells(cellArray):
             """
             Remove any cells from this set that have no hints
             @param cellArray: list of cells to scrub
@@ -149,133 +165,154 @@ class Group(object):
                 if cell.countHints() != 0:
                     newSet.append(cell)
             return newSet
-        def matchHints(baseHints, newHints, orSet):
-            """
-            Create a set of True/False bits for a set of hints so that we can see all the hints set
-             in the naked set.  orSet is passed in so that this routine can be run multiple times
-            @param baseHints: starting set of hints
-            @param newHints: set to be compared against base
-            @param orSet: OR of true bits from previous compares
-            @return: (count, orSet).  Count is the number of bits set in orSet
-            """
-            for x in range(9):
-                if baseHints[x] or newHints[x]:
-                    orSet[x] = True
+
+        def count_hint_types(cellArray):
             count = 0
+            hintArray = [None for x in range(9)]
             for x in range(9):
-                if orSet[x]:
+                for cell in cellArray:
+                    hintArray[x] = hintArray[x] or cell.hints[x]
+                if hintArray[x]:
                     count += 1
-            return (count,orSet)
-        def findNakedSet(cellArray, count):
+            return count, hintArray
+
+        def naked_set(cellArray):
             """
-            Recursive search of cellArray cells to find a set of length count
+            Check cell array for presence of naked set.  If set is a naked set, clear hints of this set
+             in all other cells of the segment, not in this set
             @param cellArray: cell set to search
-            @param count: size of set we are searching for
-            @return: set of cells that form the naked set, or False if not found
+            @return: True if found a naked set and cleared at least one hint, otherwise False
             """
-            if len(cellArray) < count:
+            change = False
+            count, hintArray = count_hint_types(cellArray)
+            if count == len(cellArray):
+                change = self.clear_these_hints(hintArray,cellArray,notCells=True) or change
+            return change
+
+        return all_combo(self.clean_set(),count,naked_set)
+
+    #def solveHiddenSets(self,count):
+    #    def trueCnt(set):
+    #        trueCnt = 0
+    #        for x in range(9):
+    #            if set[x]: trueCnt += 1
+    #        return trueCnt
+    #
+    #    def cleanSet(mySet):
+    #        cleanSet = []
+    #        for x in range(9):
+    #            if trueCnt(mySet[x]) != 0:
+    #                cleanSet.append(mySet[x])
+    #        return cleanSet
+    #
+    #    def orSet(orSet, orSum):
+    #        mySum = copy.deepcopy(orSum)
+    #        bitCount = 0
+    #        for x in range(9):
+    #            if orSet[x]:
+    #                mySum[x] = mySum[x] | orSet[x]
+    #            if mySum[x] == 1:
+    #                bitCount += 1
+    #        return (bitCount, mySum)
+    #
+    #    def chkRest(ckSet, count, orSum):
+    #        for grp in ckSet:
+    #            cnt, sumx = orSet(grp, orSum)
+    #            if cnt == count:
+    #                return grp
+    #        return False
+    #
+    #    def checkFirstNofSet(set, count):
+    #        if len(set) < count:
+    #            return Falsel
+    #        hintSet = []
+    #        set1 = copy.deepcopy(set)
+    #        orSum = [0 for x in range(9)]
+    #        for x in range(count-1):
+    #            cnt, orSum = orSet(set1[x], orSum)
+    #            hintSet.append(set1[x][9])
+    #        found = chkRest(set1[(count-1):], count, orSum)
+    #        if found:
+    #            hintSet.append(found[9])
+    #            if(self.clearHintsHidden(orSum, hintSet)):
+    #                return True
+    #        set.pop(1)
+    #        return checkFirstNofSet(set,count)
+    #
+    #    def checkSet(set,count):
+    #        if len(set) < count:
+    #            return False
+    #        workingSet = copy.deepcopy(set)
+    #        if checkFirstNofSet(workingSet, count):
+    #            print 'Found set and cleared bits'
+    #            return True
+    #        else:
+    #            workingSet = copy.deepcopy(set)
+    #            workingSet.pop(0)
+    #            return checkSet(workingSet,count)
+    #
+    #    change = False
+    #    # create array of hint locations
+    #    hintArray = [[self.cells[cell].hints[hint] for cell in range(9)] for hint in range(9)]
+    #
+    #    for cell in range(9):
+    #        hintArray[cell].append(cell)
+    #    return (checkSet(cleanSet(hintArray),count))
+
+    def clean_set(self):
+        clean_set = []
+        for cell in self.cells:
+            if cell.countHints() != 0:
+                clean_set.append(cell)
+        return clean_set
+
+    def solve_hidden_sets(self,count):
+
+        def hints_less_than(count):
+            """
+            Search cells of segment, count hints of each type, return a list
+             of hints that only appear count or fewer times
+            @param count: count limit
+            @return: set of hint values e.g. [0,3,4,7] that occur count or fewer times in cell array
+            """
+            returnSet = []
+            for hint in range(9):
+                cnt = 0
+                for cell in self.cells:
+                    if cell.hints[hint]:
+                        cnt += 1
+                if cnt <= count and cnt > 0:
+                    returnSet.append(hint)
+            return returnSet
+
+        def solve_hidden(set, hints, fullSet):
+            # find 'count' hints that are in this set and not in the rest of the cells of the segment (clean)
+            def hint_in_set(hint, set):
+                # return true if hint is in at least one cell of set, otherwise False
+                for cell in set:
+                    if cell.hints[hint]:
+                        return True
                 return False
-            cellSet = []
-            cell = cellArray[0]
-            if cell.countHints() <= count:
-                cellSet.append(cell)
-                baseSet = [None for x in range(9)]
-                for compCell in cellArray[1:]:
-                    orSet = copy.deepcopy(baseSet)
-                    cnt, orSet = matchHints(cell.hints, compCell.hints, orSet)
-                    if cnt <= count:
-                        cellSet.append(compCell)
-                        baseSet = copy.deepcopy(orSet)
-                if len(cellSet) == count:
-                    return cellSet
-            return findNakedSet(cellArray[1:], count)
 
-        change = False
-        found = findNakedSet(noEmptySets(self.cells), count)
-        if found:
-            hintSet = []
-            
-            for x in range(9):
-                for cell in found:
-                    if cell.hints[x]:
-                        if cell.hints[x] not in hintSet:
-                            hintSet.append(x)
-            for cell in self.cells:
-                if cell not in found:
-                    for hint in hintSet:
-                        if cell.hints[hint]:
-                            cell.clearHints([hint])
-                            change = True
-                            print 'Found Naked Set', found, 'Cleared bits', hint
-        return change
-
-    def solveHiddenSets(self,count):
-        def trueCnt(set):
-            trueCnt = 0
-            for x in range(9):
-                if set[x]: trueCnt += 1
-            return trueCnt
-                        
-        def cleanSet(mySet):
-            cleanSet = []
-            for x in range(9):
-                if trueCnt(mySet[x]) != 0:
-                    cleanSet.append(mySet[x])
-            return cleanSet
-
-        def orSet(orSet, orSum):
-            mySum = copy.deepcopy(orSum)
-            bitCount = 0
-            for x in range(9):
-                if orSet[x]:
-                    mySum[x] = mySum[x] | orSet[x]
-                if mySum[x] == 1:
-                    bitCount += 1
-            return (bitCount, mySum)
-                    
-        def chkRest(ckSet, count, orSum):
-            for grp in ckSet:
-                cnt, sumx = orSet(grp, orSum)
-                if cnt == count:
-                    return grp
-            return False
-
-        def checkFirstNofSet(set, count):
-            if len(set) < count:
-                return False
-            hintSet = []
-            set1 = copy.deepcopy(set)
-            orSum = [0 for x in range(9)]
-            for x in range(count-1):
-                cnt, orSum = orSet(set1[x], orSum)
-                hintSet.append(set1[x][9])
-            found = chkRest(set1[(count-1):], count, orSum)
-            if found:
-                hintSet.append(found[9])
-                if(self.clearHintsHidden(orSum, hintSet)):
-                    return True
-            set.pop(1)
-            return checkFirstNofSet(set,count)
-
-        def checkSet(set,count):
-            if len(set) < count:
-                return False
-            workingSet = copy.deepcopy(set)
-            if checkFirstNofSet(workingSet, count):
-                print 'Found set and cleared bits'
+            def hint_not_in_rest(hint, set, fullSet):
+                # return True if hint is not in any cell of fullSet except those in set
+                for cell in fullSet:
+                    if cell not in set and cell.hints[hint]:
+                        return False
                 return True
-            else:
-                workingSet = copy.deepcopy(set)
-                workingSet.pop(0)
-                return checkSet(workingSet,count)
 
-        change = False
-        # create array of hint locations
-        hintArray = [[self.cells[cell].hints[hint] for cell in range(9)] for hint in range(9)]
+            change = False
+            good_hints = []
+            for hint in hints:
+                if hint_in_set(hint,set) and hint_not_in_rest(hint, set, self.cells):
+                    good_hints.append(hint)
+            if len(good_hints)== count:
+                change = self.clear_these_hints(hints,set,notHint=True) or change
+            return change
 
-        for cell in range(9):
-            hintArray[cell].append(cell)
-        return (checkSet(cleanSet(hintArray),count))
+        hints = hints_less_than(count)
+        full_set = self.clean_set()
+        return all_combo(full_set,count,lambda set: solve_hidden(set, hints, full_set))
 
     def clearHintsHidden(self,orSum, hintSet):
         def comp(hintSet):
@@ -295,8 +332,25 @@ class Group(object):
                 change = self.cells[cell].clearHints(hintSet) or change
         return change
 
-    def findPointingPair(self):
-        cntArray = countHints(self.cells)
+    def countHints(self):
+        """
+        Counts the number of hints of each type in the cell array of this segment
+        @return: array 0-8 with a count of each hint type
+        """
+        cntArray = [0 for x in range(9)]
+        for cell in self.cells:
+            for hint in range(9):
+                if cell.hints[hint] != None:
+                    cntArray[hint] += 1
+        return cntArray
+
+    def find_pointing_pair(self):
+        """
+        If there are two or three cells in a segment that are the only two or three with a given hint, and if those two
+        cells are in a common row or column and a common square, return the two cells and the hint value
+        @return: an array of [(row, col, sqr, cellSet, cnt),(...)]
+        """
+        cntArray = self.countHints()
         superSet = []
         for cnt in range(9):
             if cntArray[cnt] > 1 and cntArray[cnt] < 4:
@@ -348,17 +402,24 @@ class Group(object):
                 print 'Clearing hint:', hint, 'in cell', cell, 'Seg:', self, 'Protect', protect
         return change
 
-    def clearTheseHints(self, hints, cells, notHint=False, notCells=False):
+    def clear_these_hints(self, hints, cells, notHint=False, notCells=False):
         """
         More generic hint clearing
-        @param hints: list of hints to be cleared, nine long, None, False or True
+        @param hints: list of hints to be cleared, nine long, None, False or True, or a list of hint numbers
+          e.g. [2,5,7]
         @param cells: list of cells on which to operate, individual cells
         @param notHint: if True, clear hints not in hint list instead of hints
         @param notCells: if True, clear cells not on cell list instead of cells
         @return True if hints were cleared, otherwise False
         """
         if len(hints) == 9:
-            raise ValueError('Received list of Booleans not hint list', hints)
+            boolHints = hints[:]
+            hints = []
+            for x in range(9):
+                if boolHints[x] > 1:
+                    raise ValueError('Thought these were boolean, appear to be values')
+                elif boolHints[x]:
+                    hints.append(x)
         if notHint:  # invert hint array if notHint is true
             hintList = notList(hints)
         else:
@@ -494,7 +555,7 @@ class Chain(object):
             # clear hints in all cells of the segment except the two in the chain
             cells = [nodes[0].cell, nodes[1].cell]
             seg = nodes[2]
-            change = seg.clearTheseHints([self.hint], cells, notCells=True) or change
+            change = seg.clear_these_hints([self.hint], cells, notCells=True) or change
         return change
 
     def rule_five(self):
@@ -515,9 +576,9 @@ class Chain(object):
             lead = nodes[0]
             for node in nodes[1:]:
                 if lead.color != node.color:
-                    vis1 = findVisibleCells(lead.cell)
-                    vis2 = findVisibleCells(node.cell)
-                    visible_to_both = findCommonCells(vis1, vis2)
+                    vis1 = find_visible_cells(lead.cell)
+                    vis2 = find_visible_cells(node.cell)
+                    visible_to_both = find_common_cells(vis1, vis2)
                     if visible_to_both:
                         for cell in visible_to_both:
                             change = cell.clearHints([self.hint]) or change
@@ -659,107 +720,221 @@ class Game(object):
                     return True
         return False
 
-    def solveNakedSets(self):
-        for setSize in range(2,5):
+    def solve_naked_sets(self):
+        for setSize in range(2,4):
             print 'Checking for naked sets size', setSize
             for group in self.segs:
                 for seg in group:
-                    if seg.solveNakedSets(setSize):
+                    if seg.solve_naked_sets(setSize):
                         return True
         return False
 
-    def solveHiddenSets(self):
+    def solve_hidden_sets(self):
+        """
+        Look for hidden sets in this segment, sets of hints that are contained within a set of cells that
+        are equal in size to the hint count (e.g. 3 cells with 3 hints, not in any of the other cells).  If
+        true, clear all other hints in these same cells.
+        @return: True if any hints were cleared, otherwise False
+        """
+        self.printHints(False)
         for setSize in range(2,5):
             print 'Checking for hidden sets size ', setSize
             for group in self.segs:
                 for seg in group:
-                    if seg.solveHiddenSets(setSize):
+                    if seg.solve_hidden_sets(setSize):
                         return True
         return False
 
-    def solvePointingSets(self):
+    def solve_pointing_sets(self):
+        """
+        Within a square, find two or three cells with the same hint that are in the same row or column
+        If found, clear that hint in all cells that are NOT in the cell set found
+        @return: True if hints were cleared, otherwise false
+        """
         print 'Checking for pointing sets'
         change = False
         for square in self.sqrs:
-            pairSets = square.findPointingPair()
+            pairSets = square.find_pointing_pair()
             for row,col,sqr,cells,hint in pairSets:
                 if row != None:
-                    #change = self.rows[row].clearPtPairHints(cells, hint) or change
-                    change = row.clearTheseHints([hint],cells,notCells=True) or change
+                    change = row.clear_these_hints([hint],cells,notCells=True) or change
                 elif col != None:
-                    #change = col.clearPtPairHints(cells, hint) or change
-                    change = col.clearTheseHints([hint],cells,notCells=True) or change
+                    change = col.clear_these_hints([hint],cells,notCells=True) or change
         return change
 
-    def boxLineReduction(self):
+    def box_line_reduction(self):
+        """
+        Within a row or column, find two or three cells with a hint in the same square and only in that square
+        If found, clear that hint in all cells in the square not in the found set.
+        @return: True if hints were cleared, otehrwise False
+        """
         print 'Checking box line reductions'
         change = False
         segs = self.rows + self.cols
         change = False
         for seg in segs:
-            pairSets = seg.findPointingPair()
+            pairSets = seg.find_pointing_pair()
             for row,col,sqr, cells,hint in pairSets:
-                #change = self.sqrs[sqr].clearPtPairHints(cells, hint) or change
-                change = sqr.clearTheseHints([hint],cells,notCells=True) or change
+                change = sqr.clear_these_hints([hint],cells,notCells=True) or change
         return change
 
-    def solveXwings(self):
+    def solve_xwings(self):
         """
         Find x-wings pairs, clear any hints eliminated by x-wing pair
-        @return: True if any hints were deleted, otherwise false
+        @return: True if any hints were deleted, otherwise False
         """
+        def this_xwing(segs, hint):
+            # find cells with these 2 hints
+            row_set = []
+            col_set = []
+            cell_set = []
+            change = False
+            for seg in segs:
+                for cell in seg.cells:
+                    if cell.hints[hint]:
+                        if cell.row not in row_set:
+                            row_set.append(cell.row)
+                        if cell.col not in col_set:
+                            col_set.append(cell.col)
+                        cell_set.append(cell)
+            if len(row_set) == 2 and len(col_set) == 2:
+                # OK we have an xWing set, now do clears.
+                # cell_set is protected set
+                # now have to know if we were working on rows or columns.  hmm
+                # OK, now find segSet opposite the set we are working on
+                if segs[0] in self.rows:
+                    clear_segs = col_set
+                else:
+                    clear_segs = row_set
+                for seg in clear_segs:
+                    change = seg.clear_these_hints([hint],cell_set,notCells=True) or change
+            return change
+
+        def solve_xwing_set(segSet):
+            change = False
+            for hint in range(9):
+                xwing_set = []
+                for set in segSet:
+                    if set.hints_in_seg(hint) == 2:
+                        xwing_set.append(set)
+                change = all_combo(xwing_set,2,lambda set: this_xwing(set, hint)) or change
+            return change
+
+        segs = [self.rows, self.cols]
         change = False
-        segSets = [self.rows, self.cols] # will search by rows then by columns
-        for segs in segSets:
-            print 'Checking xWings', segs
-            # get a list of all cells in this seg set that have only two hints
-            pairs = twoHintSegs(segs, None) # None means all hints
-            # find all x-wing sets (two rows with matching hints per column and vice versa
-            # return list of the four cell combinations
-            for (hint, set_of_one_hint) in pairs:
-                cellSet = []
-                corners = findCorners(set_of_one_hint, cellSet)
-            # now set up to do the clearing.  We can clear for rows and columns, no need to sort it out.
-                change = clearCorners(hint, corners) or change
+        for segSet in segs:
+            change = solve_xwing_set(segSet) or change
         return change
-
-    def clearSets(self, foundSets):
-        change = False
-        print 'xWings foundSets', foundSets
-        for foundSet in foundSets:
-            if foundSet[1][0].row == foundSet[1][1].row:
-                #rows match, was searching by row
-                ptSeg1 = foundSet[1][0].row
-                ptSeg2 = foundSet[2]
-                seg1 = foundSet[1][0].col
-                seg2 = foundSet[1][1].col
-                #searchSegs = self.cols
-                hint = foundSet[0]
-                #change = self.cleanSeg(hint, (seg1, seg2), (ptSeg1, ptSeg2), searchSegs) or change
-            elif foundSet[1][0].col == foundSet[1][1].col:
-                # columns match, was searching by col
-                ptSeg1 = foundSet[1][0].col
-                ptSeg2 = foundSet[2]
-                seg1 = foundSet[1][0].row
-                seg2 = foundSet[1][1].row
-                #searchSegs = self.rows
-                hint = foundSet[0]
-            else:
-                raise ValueError ('')
-            #self.printHints(False)
-            raise ValueError(hint, ptSeg1, ptSeg2)
-            #change = seg1.clearTheseHints([hint], cells, notHint=False, notCells=False)
-            # pass forward the protected segments, not integers
-            #cleanSeg(self, hint, protect):
-            change = seg1.cleanSeg(hint, (ptSeg1, ptSeg2)) or change
-            change = seg2.cleanSeg(hint, (ptSeg1, ptSeg2)) or change
-
-            #change = cleanSeg(hint, (seg1, seg2),(ptSeg1, ptSeg2), searchSegs) or change
-        return change
-
-    def findXwingQuads(segs, segType, cntrType, foundPairs=[]):
-        if len(segs) < 2:
-            return foundPairs
+    #    def findCorners(pairs, cellSet):
+    #        """
+    #        Find four corners of an xWing and return the four cells
+    #        @param pairs: [(hint, [cell1, cell2], [cell3, cell4]) ... ]
+    #        @return: cellSet - list of four-cell tuples in xWing
+    #        """
+    #        if len(pairs) < 2:
+    #            return cellSet
+    #        first = pairs[0]
+    #
+    #        for second in pairs[1:]:
+    #            if is_xwing_quad(first,second):
+    #                cellSet.append((first,second))
+    #        return findCorners(pairs[1:], cellSet)
+    #
+    #    def clearCorners(hint, corners):
+    #        """
+    #        corners input in the form [[cell1, cell2], [cell3, cell4]]
+    #        @param corners:
+    #        @return:
+    #        """
+    #        def find_four_segs(cells):
+    #            """
+    #            Take four cells of an x-wing set and return the two rows and two columns (segments
+    #            associated with that square
+    #            @param cells: four cells to process in a list
+    #            @return: four segments in a list
+    #            """
+    #            segs = []
+    #            for cell in cells:
+    #                if cell.row not in segs:
+    #                    segs.append(cell.row)
+    #                if cell.col not in segs:
+    #                    segs.append(cell.col)
+    #            if len(segs) != 4:
+    #                raise ValueError('Too many segs found in cell set, not x-wings square')
+    #            return(segs)
+    #    def clear_segs(hint, segs, protect):
+    #            """
+    #            Clear the hint 'hint' from each row and column in segs, but protect the four cells in 'protect'
+    #            @param hint: hint to be cleared
+    #            @param segs: four segments that need to be checked
+    #            @param protect: four cells where hint should be protected
+    #            @return: True or False, True if a change was made, False otherwise
+    #            """
+    #            change = False
+    #            for seg in segs:
+    #                change = seg.clear_these_hints(hint, protect, notHint=False, notCells=True) or change
+    #            return change
+    #        change = False
+    #        for segSet in corners:
+    #            cells = segSet[0] + segSet[1]
+    #            fourSegs = find_four_segs(cells)
+    #            #print 'SegSet', segSet, 'Corners', corners
+    #            #print 'Checking xWing set', hint, cells
+    #            change = clear_segs([hint], fourSegs, cells) or change
+    #        return change
+    #
+    #        change = False
+    #        segSets = [self.rows, self.cols] # will search by rows then by columns
+    #        for segs in segSets:
+    #            print 'Checking xWings', segs
+    #            # get a list of all cells in this seg set that have only two hints
+    #            pairs = hint_count_sets(segs, None, 2) # None means all hints
+    #            # find all x-wing sets (two rows with matching hints per column and vice versa
+    #            # return list of the four cell combinations
+    #            for (hint, set_of_one_hint) in pairs:
+    #                cellSet = []
+    #                corners = findCorners(set_of_one_hint, cellSet)
+    #            # now set up to do the clearing.  We can clear for rows and columns, no need to sort it out.
+    #                change = clearCorners(hint, corners) or change
+    #        return change
+    #
+    #    def clearSets(self, foundSets):
+    #        change = False
+    #        print 'xWings foundSets', foundSets
+    #        for foundSet in foundSets:
+    #            if foundSet[1][0].row == foundSet[1][1].row:
+    #                #rows match, was searching by row
+    #                ptSeg1 = foundSet[1][0].row
+    #                ptSeg2 = foundSet[2]
+    #                seg1 = foundSet[1][0].col
+    #                seg2 = foundSet[1][1].col
+    #                #searchSegs = self.cols
+    #                hint = foundSet[0]
+    #                #change = self.cleanSeg(hint, (seg1, seg2), (ptSeg1, ptSeg2), searchSegs) or change
+    #            elif foundSet[1][0].col == foundSet[1][1].col:
+    #                # columns match, was searching by col
+    #                ptSeg1 = foundSet[1][0].col
+    #                ptSeg2 = foundSet[2]
+    #                seg1 = foundSet[1][0].row
+    #                seg2 = foundSet[1][1].row
+    #                #searchSegs = self.rows
+    #                hint = foundSet[0]
+    #            else:
+    #                raise ValueError ('')
+    #            #self.printHints(False)
+    #            raise ValueError(hint, ptSeg1, ptSeg2)
+    #            #change = seg1.clearTheseHints([hint], cells, notHint=False, notCells=False)
+    #            # pass forward the protected segments, not integers
+    #            #cleanSeg(self, hint, protect):
+    #            change = seg1.cleanSeg(hint, (ptSeg1, ptSeg2)) or change
+    #            change = seg2.cleanSeg(hint, (ptSeg1, ptSeg2)) or change
+    #
+    #            #change = cleanSeg(hint, (seg1, seg2),(ptSeg1, ptSeg2), searchSegs) or change
+    #        return change
+    #
+    #def findXwingQuads(segs, segType, cntrType, foundPairs=[]):
+    #    if len(segs) < 2:
+    #        return foundPairs
 
     def findCommonSeg(self,tuple):
         """
@@ -818,7 +993,7 @@ class Game(object):
             segs = self.rows + self.cols + self.sqrs
             # for hint in range(9):
             # find all segments where a hint shows up only twice
-            pairs = twoHintSegs(segs, None)
+            pairs = hint_count_sets(segs, None, 2)
             # remove duplications from squares
             pairs2 = dedupe_pairs(pairs)
             return pairs2
@@ -900,4 +1075,99 @@ class Game(object):
         # need to put the hint into the chain, go back and figure out where that belongs
         return change
 
+    def yWings(self):
+        """
+        Look for yWing combinations.  Clear hints as dictated.
+        @return: True if hints were cleared, False otherwise
+        """
+        print 'Checking for yWings'
+        change = False
+        for cell in self.cells:
+            if cell.countHints() == 2:
+                visible_cells = find_visible_cells(cell)
+                visible_cells_two_hints = find_twos(visible_cells)
+                pairSet = find_ywing_set(cell,visible_cells_two_hints)
+                if len(pairSet) > 0:
+                    print 'Found yWing',cell, pairSet
+                    for (pair, hint) in pairSet:
+                        common = find_common_cells(find_visible_cells(pair[0]),find_visible_cells(pair[1]))
+                        for cellF in common:
+                            if cellF != cell and cellF.hints[hint]:
+                                cellF.hints[hint] = False
+                                print 'Clearing hint', hint, 'in', cellF
+                                return True
+        return False
 
+    def swordfish(self):
+        """
+        Implements swordfish strategy
+        @return: True if hints were changed, otherwise False
+        """
+        change = False
+        # this is a 3x3 xwings.  search rows and cols for rows or cols with 3 hints
+        # need to find three rows or cols with three hints in same opposite seg
+        # can we use any of the xWings code?
+        # TODO needs to be implemented
+        ''' Need to:
+        1) find rows with 2 or three cells with a hint (this is better than cells as it covers cells
+             that already have an answer)
+        2) in sets of three, count number of columns in cells with hint
+        3) if columns == 3, then we have a swordfish
+        4) find cells to protect, and clear hints if there
+        '''
+        def count_columns(segSet, hint):
+            """
+            If segSet is rows, finds and returns the columns associated with the cells
+              with hint 'hint' set in those rows.  Vice versa for columns
+            @param segSet:
+            @param hint:
+            """
+            returnSet = []
+            for seg in segSet:
+                for cell in seg:
+                    if cell.row == seg:
+                        segOpp = cell.col
+                    else:
+                        segOpp = cell.row
+                    if cell.hints[hint]:
+                        returnSet.append(segOpp)
+
+        # TODO build here a routine that is recursive, that will search for 1s, 2s and 3s in a set of whatever,
+        #  and then call the function handed to the routine?  Sounds cool.  Level of recursion determined by
+        #  the 'depth' parameter passed in, meaning how many elements are tested together 1, 12, 123, 1234
+        #  can use this routine in other places, like xWings, yWings maybe more.  Should be able to make it
+        #  independent of what is in the sets I think.  Belongs in 'basic' file.
+
+        #def all_combo(searchSet, count, function, change=False,workingSet=[]):
+        #    if len(searchSet) < count - len(workingSet):
+        #        return change
+        #    workingSet.append(searchSet[0])
+        #    if len(workingSet) == count - 1:
+        #        for last in searchSet[1:]:
+        #            work = workingSet + [last]
+        #            change = function(workingSet) or change
+        #    else:
+        #        all_combo(searchSet[1:],count, function, change, workingSet)
+        #    workingSet.pop()
+
+
+        # TODO stopped coding here.
+        segSets = [self.rows, self.cols] # will search by rows then by columns
+        for segs in segSets:
+            print 'Checking swordfish', segs
+            for hint in range(9):
+                possibleSet = []
+                for seg in segs:
+                    if seg.hints_in_seg(hint) in range(2,4):
+                        possibleSet.append(seg)
+
+            # create a list of segments with two hints and with three hints
+                segSet = hint_count_sets(segs, hint, 3), hint_count_sets(segs, hint, 2)
+            # find all x-wing sets (two rows with matching hints per column and vice versa
+            # return list of the four cell combinations
+                for (hint, set_of_one_hint) in triplets:
+                    cellSet = []
+                    corners = findCorners(set_of_one_hint, cellSet)
+                # now set up to do the clearing.  We can clear for rows and columns, no need to sort it out.
+                    change = clearCorners(hint, corners) or change
+        return change
