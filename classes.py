@@ -433,8 +433,7 @@ class Group(object):
             cellList = cells
         change = False
         for cell in cellList: #do the clearing of hints
-            if cell in cellList:
-                change = cell.clearHints(hintList) or change
+            change = cell.clearHints(hintList) or change
         return change
 
 class Row(Group):
@@ -825,116 +824,6 @@ class Game(object):
         for segSet in segs:
             change = solve_xwing_set(segSet) or change
         return change
-    #    def findCorners(pairs, cellSet):
-    #        """
-    #        Find four corners of an xWing and return the four cells
-    #        @param pairs: [(hint, [cell1, cell2], [cell3, cell4]) ... ]
-    #        @return: cellSet - list of four-cell tuples in xWing
-    #        """
-    #        if len(pairs) < 2:
-    #            return cellSet
-    #        first = pairs[0]
-    #
-    #        for second in pairs[1:]:
-    #            if is_xwing_quad(first,second):
-    #                cellSet.append((first,second))
-    #        return findCorners(pairs[1:], cellSet)
-    #
-    #    def clearCorners(hint, corners):
-    #        """
-    #        corners input in the form [[cell1, cell2], [cell3, cell4]]
-    #        @param corners:
-    #        @return:
-    #        """
-    #        def find_four_segs(cells):
-    #            """
-    #            Take four cells of an x-wing set and return the two rows and two columns (segments
-    #            associated with that square
-    #            @param cells: four cells to process in a list
-    #            @return: four segments in a list
-    #            """
-    #            segs = []
-    #            for cell in cells:
-    #                if cell.row not in segs:
-    #                    segs.append(cell.row)
-    #                if cell.col not in segs:
-    #                    segs.append(cell.col)
-    #            if len(segs) != 4:
-    #                raise ValueError('Too many segs found in cell set, not x-wings square')
-    #            return(segs)
-    #    def clear_segs(hint, segs, protect):
-    #            """
-    #            Clear the hint 'hint' from each row and column in segs, but protect the four cells in 'protect'
-    #            @param hint: hint to be cleared
-    #            @param segs: four segments that need to be checked
-    #            @param protect: four cells where hint should be protected
-    #            @return: True or False, True if a change was made, False otherwise
-    #            """
-    #            change = False
-    #            for seg in segs:
-    #                change = seg.clear_these_hints(hint, protect, notHint=False, notCells=True) or change
-    #            return change
-    #        change = False
-    #        for segSet in corners:
-    #            cells = segSet[0] + segSet[1]
-    #            fourSegs = find_four_segs(cells)
-    #            #print 'SegSet', segSet, 'Corners', corners
-    #            #print 'Checking xWing set', hint, cells
-    #            change = clear_segs([hint], fourSegs, cells) or change
-    #        return change
-    #
-    #        change = False
-    #        segSets = [self.rows, self.cols] # will search by rows then by columns
-    #        for segs in segSets:
-    #            print 'Checking xWings', segs
-    #            # get a list of all cells in this seg set that have only two hints
-    #            pairs = hint_count_sets(segs, None, 2) # None means all hints
-    #            # find all x-wing sets (two rows with matching hints per column and vice versa
-    #            # return list of the four cell combinations
-    #            for (hint, set_of_one_hint) in pairs:
-    #                cellSet = []
-    #                corners = findCorners(set_of_one_hint, cellSet)
-    #            # now set up to do the clearing.  We can clear for rows and columns, no need to sort it out.
-    #                change = clearCorners(hint, corners) or change
-    #        return change
-    #
-    #    def clearSets(self, foundSets):
-    #        change = False
-    #        print 'xWings foundSets', foundSets
-    #        for foundSet in foundSets:
-    #            if foundSet[1][0].row == foundSet[1][1].row:
-    #                #rows match, was searching by row
-    #                ptSeg1 = foundSet[1][0].row
-    #                ptSeg2 = foundSet[2]
-    #                seg1 = foundSet[1][0].col
-    #                seg2 = foundSet[1][1].col
-    #                #searchSegs = self.cols
-    #                hint = foundSet[0]
-    #                #change = self.cleanSeg(hint, (seg1, seg2), (ptSeg1, ptSeg2), searchSegs) or change
-    #            elif foundSet[1][0].col == foundSet[1][1].col:
-    #                # columns match, was searching by col
-    #                ptSeg1 = foundSet[1][0].col
-    #                ptSeg2 = foundSet[2]
-    #                seg1 = foundSet[1][0].row
-    #                seg2 = foundSet[1][1].row
-    #                #searchSegs = self.rows
-    #                hint = foundSet[0]
-    #            else:
-    #                raise ValueError ('')
-    #            #self.printHints(False)
-    #            raise ValueError(hint, ptSeg1, ptSeg2)
-    #            #change = seg1.clearTheseHints([hint], cells, notHint=False, notCells=False)
-    #            # pass forward the protected segments, not integers
-    #            #cleanSeg(self, hint, protect):
-    #            change = seg1.cleanSeg(hint, (ptSeg1, ptSeg2)) or change
-    #            change = seg2.cleanSeg(hint, (ptSeg1, ptSeg2)) or change
-    #
-    #            #change = cleanSeg(hint, (seg1, seg2),(ptSeg1, ptSeg2), searchSegs) or change
-    #        return change
-    #
-    #def findXwingQuads(segs, segType, cntrType, foundPairs=[]):
-    #    if len(segs) < 2:
-    #        return foundPairs
 
     def findCommonSeg(self,tuple):
         """
@@ -1103,71 +992,65 @@ class Game(object):
         Implements swordfish strategy
         @return: True if hints were changed, otherwise False
         """
-        change = False
-        # this is a 3x3 xwings.  search rows and cols for rows or cols with 3 hints
-        # need to find three rows or cols with three hints in same opposite seg
-        # can we use any of the xWings code?
-        # TODO needs to be implemented
-        ''' Need to:
-        1) find rows with 2 or three cells with a hint (this is better than cells as it covers cells
-             that already have an answer)
-        2) in sets of three, count number of columns in cells with hint
-        3) if columns == 3, then we have a swordfish
-        4) find cells to protect, and clear hints if there
-        '''
-        def count_columns(segSet, hint):
+        # search segment set (e.g. rows) in groups of three
+        # for each segment in the set, count the hints, should be 2 or 3
+        # if we have three segments with 2 or 3 hints, collect up the 'rows' and 'columns'
+        # if len(rows) and len(cols) is 2 or 3 then we have an xwing or a swordfish
+        # clear hints as needed
+
+        def segs_with_hint_count(hint, count, segs):
             """
-            If segSet is rows, finds and returns the columns associated with the cells
-              with hint 'hint' set in those rows.  Vice versa for columns
-            @param segSet:
-            @param hint:
+            Search through a group of segments, find those segments where the count of 'hint' in its cells
+             is less than or equal to 'count', and return those segments as a list
+            @param hint: hint we are counting
+            @param count: count limit
+            @param segs: list of segments to search
+            @return: list of segments with count or fewer 'hint'
             """
             returnSet = []
+            for seg in segs:
+                if seg.hints_in_seg(hint) <= count:
+                    returnSet.append(seg)
+            return returnSet
+
+        def check_if_swordfish(segSet, hint):
+            """
+            Check input segment set to see if it is an xWing or swordfish set based on length of set
+            Clear hints as appropriate in remainder of game
+            @param segSet: list of segments e.g. [row0, row1, row2]
+            @return: True if changes were made, False otherwise
+            """
+            set_len = len(segSet)
+            # sets are pre-qualified to have right hint count
+            # collect up rows, cols and cells
+            change = False
+            row_set = []
+            col_set = []
+            cell_set = []
             for seg in segSet:
-                for cell in seg:
-                    if cell.row == seg:
-                        segOpp = cell.col
-                    else:
-                        segOpp = cell.row
+                for cell in seg.cells:
                     if cell.hints[hint]:
-                        returnSet.append(segOpp)
-
-        # TODO build here a routine that is recursive, that will search for 1s, 2s and 3s in a set of whatever,
-        #  and then call the function handed to the routine?  Sounds cool.  Level of recursion determined by
-        #  the 'depth' parameter passed in, meaning how many elements are tested together 1, 12, 123, 1234
-        #  can use this routine in other places, like xWings, yWings maybe more.  Should be able to make it
-        #  independent of what is in the sets I think.  Belongs in 'basic' file.
-
-        #def all_combo(searchSet, count, function, change=False,workingSet=[]):
-        #    if len(searchSet) < count - len(workingSet):
-        #        return change
-        #    workingSet.append(searchSet[0])
-        #    if len(workingSet) == count - 1:
-        #        for last in searchSet[1:]:
-        #            work = workingSet + [last]
-        #            change = function(workingSet) or change
-        #    else:
-        #        all_combo(searchSet[1:],count, function, change, workingSet)
-        #    workingSet.pop()
+                        if cell.row not in row_set:
+                            row_set.append(cell.row)
+                        if cell.col not in col_set:
+                            col_set.append(cell.col)
+                        cell_set.append(cell)
+            if len(row_set) == 3 and len(col_set) == 3:
+                # we have a swordfish set
+                if segSet[0] in self.rows:
+                    clear_set = col_set
+                else:
+                    clear_set = row_set
+                for seg in clear_set:
+                    change = seg.clear_these_hints([hint], cell_set, notCells=True) or change
+            return change
 
 
-        # TODO stopped coding here.
-        segSets = [self.rows, self.cols] # will search by rows then by columns
-        for segs in segSets:
-            print 'Checking swordfish', segs
+        change = False
+
+        segSets = [self.rows, self.cols]
+        for segSet in segSets:
             for hint in range(9):
-                possibleSet = []
-                for seg in segs:
-                    if seg.hints_in_seg(hint) in range(2,4):
-                        possibleSet.append(seg)
-
-            # create a list of segments with two hints and with three hints
-                segSet = hint_count_sets(segs, hint, 3), hint_count_sets(segs, hint, 2)
-            # find all x-wing sets (two rows with matching hints per column and vice versa
-            # return list of the four cell combinations
-                for (hint, set_of_one_hint) in triplets:
-                    cellSet = []
-                    corners = findCorners(set_of_one_hint, cellSet)
-                # now set up to do the clearing.  We can clear for rows and columns, no need to sort it out.
-                    change = clearCorners(hint, corners) or change
+                segs_to_search = segs_with_hint_count(hint, 3, segSet)
+                change = all_combo(segs_to_search,3,lambda set: check_if_swordfish(set, hint)) or change
         return change

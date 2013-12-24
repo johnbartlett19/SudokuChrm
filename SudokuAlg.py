@@ -32,8 +32,8 @@ def solveLoop(game):
             change = True
         elif game.yWings():
             change = True
-        #elif game.swordfish():
-        #    change = True
+        elif game.swordfish():
+            change = True
     #return change
     #if game.check():
     #    change = False
@@ -58,9 +58,12 @@ def solveLoop(game):
 #inString = '  2 48   8    6     4  23 5 5   7 3 2 7 3 9 8 8 4   2 1 38  7     6    1   97 8  ' #needs simple coloring rule 2
 #inString = '8 7 9 6 295286  4 3 6 2 598781934256264     95396 2  46     42112  4698 4 821  65' #needs simple coloring rule 5
 #inString = '036210840800045631014863009287030456693584000145672398408396000350028064060450083' #needs simple coloring rule 4 and yWings
-inString = '309000400200709000087000000750060230600904008028050041000000590000106007006000104' #needs yWings
+#inString = '309000400200709000087000000750060230600904008028050041000000590000106007006000104' #needs yWings
 #inString = '409716000610389040070245169000964021004173690196852030960421070030698000040537906' #solves with Hidden Sets & box line reduction & ywing
-#inString = '050030602642895317037020800023504700406000520571962483214000900760109234300240170' #needs swordfish
+inString = '195367248078050369306098157003780590709005006584906710832549671907013025051072900' #needs swordfish
+#inString = '050030602642895317037020800023504700406000520571962483214000900760109234300240170' #needs swordfish and XY chain
+
+
 
 game = Game()
 game.setGameStart(inString)
