@@ -40,7 +40,6 @@ def hint_count_sets(segs, hint, count):
         returnSet.append((hint,hintCellSet))
     return returnSet
 
-
 def notList(set):
     """
     Returns ones complement or boolean complement of input set, or opposite set if numbers
@@ -67,7 +66,7 @@ def open_web(inString):
         if ans == ' ': ans = '0'
         urlString = urlString + ans
     url = beginning + urlString
-    webbrowser.open(url,new=new)
+    webbrowser.open(url, new=new)
 
 def all_combo(theSet, count, function, preSet=[], change=False):
     if len(theSet)+len(preSet) < count:
@@ -122,44 +121,68 @@ def find_common_cells(cellSet1, cellSet2):
             returnSet.append(cell)
     return returnSet
 
-
 def find_ywing_set(cell, cellSet):
     '''
     we assume here that cellSet is visible, and only has two hints true
     search cellSet to see if there is a y-wing set within this cell set
     @param cell: starting cell
     @param cellSet: simple cell set with only two hints set in each cell
+    @return: list of tuples (cell-pair, common-hint)
     '''
-    c1hints = []  # get true hints in starter cell
-    for x in range(9):
-        if cell.hints[x]:
-            c1hints.append(x)
-    twoHintCells = []
-    for cCell in cellSet:  # find cells with at least one hint in common
-        for hint in c1hints:
-            if cCell.hints[hint]:
-                if cCell not in twoHintCells:
-                    twoHintCells.append(cCell)
-    # look in cellSet, find pairs of cells with a common hint that is not one of the
-    #   true hints in the original cell
-    returnSet = []
-    hintCount = [0 for x in range(9)]  #count the hints of each type in this cell set
-    for dCell in twoHintCells:
-        for hint in range(9):
-            if dCell.hints[hint] and hint not in c1hints:
-                hintCount[hint] += 1
+    def find_pairs(cell_set, match_hints, return_set=[]):
+        '''
+        @param: cell-set: list of cells with only two hints set
+        @param: match_hints: each cell will match one of these hints, we want a pair where the other hints match
+            each other but not the one common with this pair
+        @return: List of pairs of cells with common hint in form [([cell1, cell2], hint),(), {}]
+        '''
+        if len(cell_set) <= 1:
+            return return_set
+        one = cell_set[0]
+        one_hints = one.true_hints()
+        for two in cell_set[1:]:
+            two_hints = two.true_hints()
+            for hint in one_hints:
+                for hint2 in two_hints:
+                    if hint == hint2 and hint not in match_hints:
+                        return_set.append(((one, two), hint))
+        return find_pairs(cell_set[1:], match_hints, return_set)
+    cell_hints = cell.true_hints()  # get true hints in starter cell
+    return find_pairs(cellSet, cell_hints)
 
-    for x in range(9):  # find pairs with hint not in original cell
-        if hintCount[x] == 2:
-            pair = []
-            for cellT in twoHintCells:
-                if cellT.hints[x]:
-                    pair.append(cellT)
-            otherHint = []
-            for cellP in pair:
-                for y in range(9):
-                    if cellP.hints[y] and y != x:
-                        otherHint.append(y)
-            if otherHint[0] != otherHint[1] and otherHint[0] in c1hints and otherHint[1] in c1hints:
-                returnSet.append((pair,x))
-    return (returnSet)
+def dedupe_pairs(pairs):
+    """
+    Take a list of cell pairs and eliminate duplications
+    @param pairs: set of cell pairs in the form [[cell1, cell2],[cell3, cell4],...]
+    @return: set of deduped cell pairs in the same format
+    """
+    returnSet = []
+    for pair in pairs:
+        flip = [pair[1],pair[0]]
+        if pair not in returnSet and flip not in returnSet:
+            returnSet.append(pair)
+    return returnSet
+
+def dedupe_pairs_with_hint(pairs):
+    """
+    Take a list of cell pairs and eliminate duplications
+    @param pairs: set of cell pairs in the form [(hint,[[cell1, cell2],[cell3, cell4],...]),...]
+    @return: set of deduped cell pairs in the same format
+    """
+    returnSet = []
+    for hint, cellSet in pairs:
+        returnCellSet = []
+        for pair in cellSet:
+            pair_sorted = sorted(pair)
+            if pair_sorted not in returnCellSet:
+                returnCellSet.append(pair_sorted)
+        returnSet.append((hint,returnCellSet))
+    return returnSet
+
+def not_cell(cell, pair):
+    if cell == pair[0]:
+        return pair[1]
+    elif cell == pair[1]:
+        return pair[0]
+    else:
+        raise ValueError('Cell not in pair')

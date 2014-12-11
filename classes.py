@@ -4,31 +4,30 @@ from basics import *
 from simpleColoredChain import *
 #from yWings import *
 
-# TODO add doc strings to any routines that do not have them
-#def countHints(cellArray):
-#    """
-#    Counts the number of hints of each type in an array of cells
-#    @param cellArray:
-#    @return:
-#    """
-#    cntArray = [0 for x in range(9)]
-#    for cell in cellArray:
-#        for hint in range(9):
-#            if cell.hints[hint] != None:
-#                cntArray[hint] += 1
-#    return cntArray
 
 class Cell(object):
+    '''
+    Represents a cell in the Sudoku puzzle.  Initially has 9 true hints meaning it could be any of 9 answers
+    Hints are represented as 0 thru 8 to make them more consistent with Python and allow use of simple ranges
+    Printout of the puzzle at the end of the program adds one to each hint to make more consistent with how puzzles
+    are typically presented.
+
+    Each cell knows to which row, column and square it belongs, and also to the whole game.  This allows finding of
+    visible cells (for instance) by working back to the larger set.
+    '''
     def __init__(self, row, col, square, game):
         self.answer = None
         self.hints = [True for x in range(9)]
         self.row = row
         self.col = col
         self.sqr = square
+        self.segs = [self.row, self.col, self.sqr]
         self.game = game
 
     def __repr__(self):
-        return 'Cell-' + str(self.row) + '-' + str(self.col) #+ '-' + str(self.sqr)
+        return 'Cel-' + str(self.row) + '-' + str(self.col) #+ '-' + str(self.sqr)
+    def __lt__(self, other):
+        return [str(self.row), str(self.col), str(self.sqr)] < [str(other.row), str(other.col), str(other.sqr)]
 
     def getSeg(self,segType):
         if segType == 'Row':
@@ -53,17 +52,32 @@ class Cell(object):
         for hint in hints:
             if self.hints[hint]:
                 self.hints[hint] = None
+                print 'Cleared hint ' + str(hint + 1) + ' in ' + str(self)
                 change = True
         if self.countHints() == 0 and self.answer == None:
-            raise ValueError('Just cleared last hint in a cell', self)
+            raise ValueError('Just cleared last hint in a cell ', self)
         return change
 
     def countHints(self):
+        '''
+        Count how many hints are set true
+        @return: integer count of true hints
+        '''
         count = 0
         for x in range(9):
             if self.hints[x]:
                 count += 1
         return count
+
+    def true_hints(self):
+        '''
+        @return: array of index of true hints e.g. [2,3]
+        '''
+        true_hints = []
+        for x in range(9):
+            if self.hints[x]:
+                true_hints.append(x)
+        return true_hints
 
 class Group(object):
     def __init__(self, num, game):
@@ -90,6 +104,11 @@ class Group(object):
         return change
 
     def hints_in_seg(self, hint):
+        '''
+        Count the number of cells with 'hint' true
+        @param hint: hint value to check
+        @return: count of cells (integer 0-9) with hint true
+        '''
         cellCount = 0
         for cell in self.cells:
             if cell.hints[hint]:
@@ -97,6 +116,11 @@ class Group(object):
         return cellCount
 
     def twoHintCellPair(self, hint):
+        '''
+        Determine if group has only 2 cells with 'hint' value true
+        @param hint: hint value to check
+        @return: pair of cells if there are only two with hint set, otherwise False
+        '''
         pair = []
         for cell in self.cells:
             if cell.hints[hint]:
@@ -147,6 +171,21 @@ class Group(object):
                             change = True
         return change
 
+    def cells_with_hint(self, hint):
+        '''
+        Find all cells in group with hint true, return set, return False if none
+        @param hint: value of hint to check
+        @return: set of cells or False
+        '''
+        hint_set = []
+        for cell in self.cells:
+            if cell.hints[hint]:
+                hint_set.append(cell)
+        if len(hint_set) > 0:
+            return hint_set
+        else:
+            return False
+
     def solve_naked_sets(self, count):
         """
         second generation code, using the 'all_combo' function for searching through sets in combinations
@@ -190,74 +229,6 @@ class Group(object):
             return change
 
         return all_combo(self.clean_set(),count,naked_set)
-
-    #def solveHiddenSets(self,count):
-    #    def trueCnt(set):
-    #        trueCnt = 0
-    #        for x in range(9):
-    #            if set[x]: trueCnt += 1
-    #        return trueCnt
-    #
-    #    def cleanSet(mySet):
-    #        cleanSet = []
-    #        for x in range(9):
-    #            if trueCnt(mySet[x]) != 0:
-    #                cleanSet.append(mySet[x])
-    #        return cleanSet
-    #
-    #    def orSet(orSet, orSum):
-    #        mySum = copy.deepcopy(orSum)
-    #        bitCount = 0
-    #        for x in range(9):
-    #            if orSet[x]:
-    #                mySum[x] = mySum[x] | orSet[x]
-    #            if mySum[x] == 1:
-    #                bitCount += 1
-    #        return (bitCount, mySum)
-    #
-    #    def chkRest(ckSet, count, orSum):
-    #        for grp in ckSet:
-    #            cnt, sumx = orSet(grp, orSum)
-    #            if cnt == count:
-    #                return grp
-    #        return False
-    #
-    #    def checkFirstNofSet(set, count):
-    #        if len(set) < count:
-    #            return Falsel
-    #        hintSet = []
-    #        set1 = copy.deepcopy(set)
-    #        orSum = [0 for x in range(9)]
-    #        for x in range(count-1):
-    #            cnt, orSum = orSet(set1[x], orSum)
-    #            hintSet.append(set1[x][9])
-    #        found = chkRest(set1[(count-1):], count, orSum)
-    #        if found:
-    #            hintSet.append(found[9])
-    #            if(self.clearHintsHidden(orSum, hintSet)):
-    #                return True
-    #        set.pop(1)
-    #        return checkFirstNofSet(set,count)
-    #
-    #    def checkSet(set,count):
-    #        if len(set) < count:
-    #            return False
-    #        workingSet = copy.deepcopy(set)
-    #        if checkFirstNofSet(workingSet, count):
-    #            print 'Found set and cleared bits'
-    #            return True
-    #        else:
-    #            workingSet = copy.deepcopy(set)
-    #            workingSet.pop(0)
-    #            return checkSet(workingSet,count)
-    #
-    #    change = False
-    #    # create array of hint locations
-    #    hintArray = [[self.cells[cell].hints[hint] for cell in range(9)] for hint in range(9)]
-    #
-    #    for cell in range(9):
-    #        hintArray[cell].append(cell)
-    #    return (checkSet(cleanSet(hintArray),count))
 
     def clean_set(self):
         clean_set = []
@@ -472,11 +443,15 @@ class ChainNode(object):
         return 'ChNode-' + str(self.cell) + '-' + str(self.color)
     def __len__(self):
         return len(self.links)
+    def has_cell(self, cell):
+        if cell in [self.node_1, self.node_2]:
+            return True
+        return False
     def addLink(self, node):
             self.links.append(node)
 
 class Chain(object):
-    def __init__(self, hint, node):
+    def __init__(self, hint, node, type='X'):
         def build(chain, node):
             chain.nodes.append(node)
             for link in node.links:
@@ -485,10 +460,12 @@ class Chain(object):
         self.hint = hint
         self.nodes = []
         self.name = str(node)
+        self.type = type
         build(self, node)
 
     def __repr__(self):
-        return 'Chain-H' + str(self.hint) + '-' + self.name
+        return 'Chain-H' + str(self.hint) + '-' + self.type + '-' + self.name
+
     def color(self):
         # color this chain
         def colorChain(node, last='Blue'):
@@ -508,7 +485,7 @@ class Chain(object):
     def rule_two(self):
         """
         Rule 2: This Rules says that if any seg has the same color twice
-          ALL those candidates which share that colour must be OFF.
+          ALL those candidates which share that color must be OFF.
         @return: change = True if hints were cleared, otherwise false:
         """
         def find_rule_two(nodes):
@@ -586,10 +563,168 @@ class Chain(object):
         change = False
         return find_rule_five(self.nodes,self.hint,change)
 
+class XChain_Link(object):
+    def __init__(self, type, hint, pair):
+        if type in ['Strong', 'Weak']:
+            self.type = type
+        else:
+            raise ValueError('Trying to create XChainNode of type ' + type)
+        self.node_1, self.node_2 = sorted(pair)
+        self.cells = [self.node_1, self.node_2]
+        self.hint = hint
+
+    def __repr__(self):
+        return 'XChLnk-' + str(self.node_1) + '-' + str(self.node_2)
+
+class XChain(object):
+    def __init__(self):
+        self.links = []
+        self.head = None
+        self.tail = None
+        self.loop = False
+        self.head_cell = None
+        self.tail_cell = None
+        self.hint = None
+
+    def __repr__(self):
+        return 'XChain ' + str(len(self.links))
+
+    def str_links(self):
+        nxt_cell = self.head_cell
+        for link in self.links:
+            print nxt_cell,
+            print '~',
+            nxt_cell = not_cell(nxt_cell, [link.node_1, link.node_2])
+            # if nxt_cell == self.tail_cell:
+            #     break
+        print nxt_cell
+            
+    def add_link(self, new_link, end):
+        if self.head == None and self.tail == None:
+            # first link in this chain
+            self.links.append(new_link)
+            self.head = new_link
+            self.tail = new_link
+            self.head_cell = new_link.node_1
+            self.tail_cell = new_link.node_2
+            self.hint = new_link.hint
+        else:
+            found = False
+            # make sure hint of link matches chain
+            if self.hint != new_link.hint:
+                raise ValueError('Adding XChainLink to XChain with non-matching hint value')
+            new_pair = [new_link.node_1, new_link.node_2]
+            if end == 'Tail' and self.tail_cell in new_pair:
+                # insert at end
+                self.tail = new_link  # make new link new tail
+                # new_link.node_linked(cell) # set cell in new tail as linked
+                self.links = self.links + [new_link]
+                self.tail_cell = not_cell(self.tail_cell, new_pair)
+            elif end == 'Head' and self.head_cell in new_pair:
+                # insert at head
+                self.head = new_link  # set head as new link
+                self.links = [new_link] + self.links
+                self.head_cell = not_cell(self.head_cell, new_pair)
+            else:
+                raise ValueError('Trying to add link to chain with no match')
+        if self.head_cell == self.tail_cell:
+            self.loop = True
+            return True
+        else:
+            if self.loop:
+                raise ValueError ("Why wasn't loop caught and corrected?")
+        return False
+
+    def remove_link(self, link):
+        '''
+        Remove link from current chain.  Link being removed must be head or tail link, otherwise error.
+        @param link: Link to be removed
+        @return: nothing
+        '''
+        #find at head or tail
+        link_cells = [link.node_1, link.node_2]
+        self.loop = False
+        if len(self.links) == 1:
+            self.links = []
+            self.head = None
+            self.tail = None
+            self.head_cell = None
+            self.tail_cell = None
+            self.loop = False
+        elif link == self.head:
+            #remove from head
+            self.links = self.links[1:]
+            self.head = self.links[0]
+            self.head_cell = not_cell(self.head_cell, link_cells)
+        elif link == self.tail:
+            #remove from tail
+            self.links = self.links[:-1]
+            self.tail = self.links[-1]
+            self.tail_cell = not_cell(self.tail_cell, link_cells)
+        else:
+            raise ValueError('Trying to remove link from XChain that is not head or tail link')
+
+        # TODO Chain can have method for checking rules and clearing hints
+
+    def rules(self):
+        if not self.loop:
+            raise ValueError('Trying to run rules on XCycle Chain that is not a loop')
+        if len(self.links) % 2 == 0 and (self.head.type == 'Strong' or self.tail.type == 'Strong'):
+            # Execute Rule 1
+            print 'Found XCycle Chain Rule 1:'
+            # return True if hint(s) cleared, otherwise False
+            # find all segments included in chain and all cells to protect
+            segs = []
+            protect_cells = []
+            hint = self.head.hint
+            cell = self.head_cell
+            for link in self.links:
+                if link.type == 'Weak':
+                    for seg in cell.segs:
+                        if seg not in segs and seg in link.node_1.segs and seg in link.node_2.segs:
+                            segs.append(seg)
+                for cell in link.cells:
+                    if cell not in protect_cells:
+                        protect_cells.append(cell)
+            # call for change
+            change = False
+            for seg in segs:
+                change = seg.clear_these_hints([hint],protect_cells,notCells=True) or change
+            return change
+
+        elif self.head.type == 'Weak' and self.tail.type == 'Weak':
+            # Execute Rule 3 - cell at end, can eliminate hint of this link
+            #  return True if hint(s) cleared, otherwise False
+            print 'Found XCycle Chain Rule 3:'
+            if self.head_cell != self.tail_cell:
+                raise ValueError('Not a loop')
+            self.head_cell.clearHints([self.head.hint])
+            return True
+
+        elif len(self.links) % 2 == 1:
+            rule_two = False
+            previous = None
+            for link in self.links:
+                if link.type == 'Strong' and previous == 'Strong':
+                    rule_two = True
+                    for cell in link.cells:
+                        if cell in previous.cells:
+                            rule_two_cell = cell
+                    previous = link.type
+            if self.head.type == 'Strong' and self.tail.type == 'Strong':
+                rule_two = True
+                rule_two_cell = self.head_cell
+            if rule_two:
+                # Execute Rule 2
+                # Return True if hint(s) cleared, otherwise False
+                print 'Found XCycle Chain Rule 2:'
+                print 'Setting answer ' + str(self.hint + 1) + ' in cell ' + str(rule_two_cell)
+                rule_two_cell.setAnswer(self.hint)
+                return True
+            return False
+
 class Game(object):
-    # rewrite this init from scratch.  Set up segs to know which game they belong to.
-    # set up cells to know which row, col and square they belong to.  Have to initiate
-    # from game down to lower levels.
+
     def __init__(self):
         self.cells = []
         self.rows = [Row(x,self) for x in range(9)]
@@ -647,6 +782,15 @@ class Game(object):
 
     def __repr__(self):
         return 'Game'
+
+    def inString(self):
+        sol = ''
+        for cell in self.cells:
+            if cell.answer == None:
+                sol = sol + str(0)
+            else:
+                sol = sol + str(cell.answer + 1)
+        return sol
 
     def clearHints(self):
         print 'Clearing hints by answers', self
@@ -856,112 +1000,42 @@ class Game(object):
             returnSet.append((self.sqrs[cellPair[0].sqr],position))
         return returnSet
 
+    def cell_pairs(self):
+        """
+        find all cell pairs in game where the segment has only two cells for any given hint
+        @return: deduped cell pairs in the form[[cell1, cell2],[cell3,cell4],...]
+        """
+        segs = self.rows + self.cols + self.sqrs
+        pairs_with_hint = hint_count_sets(segs, None, 2)
+        pair_list = []
+        for pair_set in pairs_with_hint:
+            hint,pairs = pair_set
+            pair_list = pair_list + pairs
+        pairs2 = dedupe_pairs(pair_list)
+        return pairs2
+
+    def cell_pairs_by_hint(self):
+        """
+        Find all cell pairs in the game where the segment (row, col, sqr) has only two cells
+        for any given hint
+        @return: cell pairs in the form [(hint,[cell1, cell2],[cell3, cell4],...),( ...)]
+        """
+        segs = self.rows + self.cols + self.sqrs
+        # find all segments where a hint shows up only twice
+        pairs = hint_count_sets(segs, None, 2)
+        # remove duplications from squares
+        pairs2 = dedupe_pairs_with_hint(pairs)
+        return pairs2
+
     def simpleColoring(self):
-        def dedupe_pairs(pairs):
-            """
-            Take a list of cell pairs and eliminate duplications
-            @param pairs: set of cell pairs in the form [(hint,[[cell1, cell2],[cell3, cell4],...]),...]
-            @return: set of deduped cell pairs in the same format
-            """
-            returnSet = []
-            for hint, cellSet in pairs:
-                returnCellSet = []
-                for pair in cellSet:
-                    flip = [pair[1],pair[0]]
-                    if pair not in returnCellSet and flip not in returnCellSet:
-                        returnCellSet.append(pair)
-                returnSet.append((hint,returnCellSet))
-            return returnSet
-
-        def get_cell_pairs():
-            """
-            Find all cell pairs in the game where the segment (row, col, sqr) has only two cells
-            for any given hint
-            @return: cell pairs in the form [[cell1, cell2],[cell3, cell4],...]
-            """
-            segs = self.rows + self.cols + self.sqrs
-            # for hint in range(9):
-            # find all segments where a hint shows up only twice
-            pairs = hint_count_sets(segs, None, 2)
-            # remove duplications from squares
-            pairs2 = dedupe_pairs(pairs)
-            return pairs2
-
-        def create_chains(pairs):
-            # create chains
-            """
-            Take a set of cell pairs, create nodes of a chain and color the chains.  Return a list
-              of colored chains
-            @param pairs: list of cell pairs in the form [(hint,[[cell1, cell2],[cell3, cell4]...]),(hint, [[...]
-            @return: list of colored chains in the form[chain,chain,chain ...]
-            """
-            # iterate from here over the 9 sets in 'pairs' and for each one create chains
-            chainSet = []
-            for hintPairSet in pairs:
-                chains = createChains(hintPairSet)
-                chainSet = chainSet + chains
-            for chain in chainSet:
-                chain.color()
-            return chainSet
-
-            # chains = createChains(pairs)
-            # # color the chains
-            # for chain in chains:
-            #     chain.color()
-            #     printChain(chain)
-            #     print()
-            # return chains
-
-        def createChains(hintPairSet):
-            """
-            Takes a list of cell pairs as input, all with the same hint, and creates the chain links
-            First part builds a dictionary that creates a node for each cell, and links that node
-             to each other node where the chain connects
-            Nodes are then extracted from the dictionary into a list
-            Chains are then built from the node list and put into a list of chains, which is returned
-            @param pairs: in the form (hint, [cell1, cell2],[cell3, cell4] ...)
-            @return: chains: in the form [chain1,chain2,chain3,...]
-            """
-            chainDict = {}
-            hint, cellSet = hintPairSet
-            for cellPair in cellSet:
-                for cell in cellPair:
-                    if cell not in chainDict:
-                        chainDict[cell] = ChainNode(cell)
-                    # try:
-                    #     node = chainDict[cell]
-                    # except:
-                    #     node = ChainNode(cell)
-                    #     chainDict[cell] = node
-                chainDict[cellPair[0]].addLink(chainDict[cellPair[1]])
-                chainDict[cellPair[1]].addLink(chainDict[cellPair[0]])
-            # Convert to a list of nodes
-            nodeSet = []
-            for cell in chainDict:
-                nodeSet.append(chainDict[cell])
-            # now use this nodeSet (set of nodes) to build the chains
-            # take first node in the list, follow and find the set that constitute a chain, then
-            #  remove those nodes from the nodeSet
-            chainSet = []
-            while len(nodeSet):
-                newChain = Chain(hint, nodeSet[0])
-                chainSet.append(newChain)
-                newNodeSet = []
-                for node in nodeSet:
-                    if node not in newChain.nodes:
-                        newNodeSet.append(node)
-                nodeSet = newNodeSet
-            return chainSet
-
         print 'Using simple coloring to check color rules'
         change = False
-        pairs = get_cell_pairs()
+        pairs = self.cell_pairs_by_hint()
         chains = create_chains(pairs)
         for chain in chains:
             change = chain.rule_two() or change
             change = chain.rule_four() or change
             change = chain.rule_five() or change
-        # need to put the hint into the chain, go back and figure out where that belongs
         return change
 
     def yWings(self):
@@ -975,7 +1049,14 @@ class Game(object):
             if cell.countHints() == 2:
                 visible_cells = find_visible_cells(cell)
                 visible_cells_two_hints = find_twos(visible_cells)
-                pairSet = find_ywing_set(cell,visible_cells_two_hints)
+                # find visible cells that have one matching hint with lead cell
+                cell_set = []
+                for hint in cell.true_hints():
+                    for match_cell in visible_cells_two_hints:
+                        if hint in match_cell.true_hints():
+                            cell_set.append(match_cell)
+                # find pair sets that have a matching other hint
+                pairSet = find_ywing_set(cell,cell_set)
                 if len(pairSet) > 0:
                     print 'Found yWing',cell, pairSet
                     for (pair, hint) in pairSet:
@@ -1045,12 +1126,371 @@ class Game(object):
                     change = seg.clear_these_hints([hint], cell_set, notCells=True) or change
             return change
 
-
         change = False
-
         segSets = [self.rows, self.cols]
         for segSet in segSets:
             for hint in range(9):
                 segs_to_search = segs_with_hint_count(hint, 3, segSet)
                 change = all_combo(segs_to_search,3,lambda set: check_if_swordfish(set, hint)) or change
         return change
+
+    def xy_chain(self):
+        '''
+        Find XY chains & clear pincered cell hint. Look for common hint in two-hint cells, with visibility to
+        clearable hint in pincered cell, then see if they can be connected with a chain.  Will limit the tries to
+        those that are useful and to the hint that matters.
+        @return: True if a hint was cleared, otherwise False
+        '''
+        def find_visible_for_chain(set, hint, possibles):
+            '''
+            Recursive routine to find cells in game where two cells in input set have visibility to a third
+            cell with the hint set true, to be returned as a pair plus the visible cell ([cell1,cell2],vis_cell, hint)
+            @param set: list of cells to be evaluated in pairs
+            @param hint: hint that is true for each cell in this set and must be true in visible cells
+            @param possibles: list of cell pairs from set and visible cell that may be an xy-chain candidate
+            @return: possibles
+            '''
+            if len(set) < 2:
+                return possibles  # end of the recurse, return
+            lead = set[0]
+            vis_set_lead = find_visible_cells(lead)
+            for second in set[1:]:
+                vis_set_second = find_visible_cells(second)
+                vis_set_common = find_common_cells(vis_set_lead, vis_set_second)
+                # find cells that have hint of interest
+                vis_with_hint = []
+                for cell in vis_set_common:
+                    if cell.hints[hint] and cell != lead and cell != second:
+                        vis_with_hint.append(cell)
+                # OK, now have cells with hint visible to both, do we have one or more?
+                for vis in vis_with_hint:
+                    possibles.append(([lead, second], vis, hint))
+            return find_visible_for_chain(set[1:], hint, possibles)
+
+        def xy_chain_exists(set):
+            '''
+            Evaluate each set to see if an XY chain can be built between them
+            @param set: ([cell1, cell2], vis_cell, hint) # we don't need vis_cell here ..
+            @return: True if an XY chain exists, otherwise False
+            '''
+            lead = set[0][0]
+            tail = set[0][1]
+            vis_cell = set[1]
+            hint = set[2]  # this is the XY-chain end hint
+            print 'Testing xy-chain ' + str(lead) + ' to ' + str(tail) + ' hint ' + str(hint)
+            if hint not in lead.true_hints():
+                raise ValueError
+            if hint not in tail.true_hints():
+                raise ValueError
+            next_hint = find_other_hint(lead, hint)
+            chain = [lead]
+            if build_chain(chain, tail, next_hint, vis_cell, hint):
+                # If we get here we have a pair that has visibility to a hint that can be cleared
+                #  and we know we can build an XY chain between the pair
+                #  so now we can clear that hint
+                # vis_cell.hints[hint] = False
+                return True
+            return False
+
+        def build_chain(chain, tail, last_hint, vis_cell, chain_hint):
+            '''
+            Try to build an XY chain from lead to tail
+            @param lead: first cell
+            @param tail: last cell, trying to reach this one
+            @param last_hint: hint at the end of the chain
+            @param two_hint_cells: list of cells in game with only two hints set
+            @return: True if a chain exists, otherwise False
+            '''
+            # TODO this set below should be a separate recursive routine
+            #   Input is lead, tail, last_hint, two_hint_cells
+            chain = chain[:]
+            # find cells visible to lead:
+            vis_cells = find_visible_cells(chain[-1])
+            # reduce list to those with the right hint set and not in chain
+            vis_with_hint = []
+            for cell in vis_cells:
+                if cell.hints[last_hint] and cell not in chain and cell != vis_cell and cell.countHints() == 2:
+                    vis_with_hint.append(cell)
+            # choose next in chain (build chain to eliminate looping)
+            for cell in vis_with_hint:
+                if cell == tail and last_hint != chain_hint:
+                    return True
+                else:
+                    # chain.append(cell)
+                    # last_hint = find_other_hint(cell, last_hint)
+                    if build_chain(chain + [cell], tail, find_other_hint(cell, last_hint), vis_cell, chain_hint):
+                        return True
+            return False
+            # determine next hint
+            # recurse, looking for tail cell
+
+        def find_other_hint(cell, hint):
+            '''
+            Assumes cell has two true hints.  One is passed in.  Return the other one
+            @param cell: cell object with two true hints
+            @param hint: hint we already know, integer range(9)
+            @return: true_hint, value of second true hint, integer range(9)
+            '''
+            # TODO simple function to find other true hint, return hint
+            for true_hint in cell.true_hints():
+                if true_hint != hint:
+                    return true_hint
+            raise ValueError('Could not find true hint other than hint passed to function')
+        # find 2-hint cells
+        two_hint_cells = find_twos(self.cells)
+        # find pairs of cells with visibility to hints not cleared, by hint
+        for hint in range(9):
+            cell_set_one_hint = []
+            for cell in two_hint_cells:
+                if cell.hints[hint]:
+                    cell_set_one_hint.append(cell)
+            return_set = []
+            possibles = find_visible_for_chain(cell_set_one_hint, hint, return_set)
+            # OK, now we have two cells and a visible cell (a whole list of them)
+            # Can we build an XY chain between the two cells, with 'hint' open at each end?
+            for set in possibles:
+                if(xy_chain_exists(set)):
+                    set[1].hints[set[2]] = False
+                    return True
+        return False
+
+    def x_cycle(self):
+        '''
+        Find X-Cycles, hints in visible cells, return True if hints cleared
+        @return:
+        '''
+        def cell_in_set(cell, pair, set):
+            for pair2 in set:
+                if pair2 == pair: continue
+                if cell in pair2:
+                    return True
+            return False
+
+        def check_sets(open_cell, strong_set, weak_set):
+            '''
+            Determine if there is a link in strong_set or weak_set that has open_cell on one end of the link
+            @param open_cell:
+            @param strong_set:
+            @param weak_set:
+            @return: set of matching links if one exists, False otherwise
+            '''
+            return_set = []
+            for s_link in strong_set:
+                if open_cell == s_link.node_1 or open_cell == s_link.node_2:
+                    return_set.append(s_link)
+            for w_link in weak_set:
+                if open_cell == w_link.node_1 or open_cell == w_link.node_2:
+                    return_set.append(w_link)
+            if len(return_set) > 0:
+                return return_set
+            return False
+
+        def build_x_cyc_chain(strong_set, weak_set, up_chain=XChain()):
+            def copy_xchain(xchain_old):
+                xchain_new = XChain()
+                xchain_new.links = xchain_old.links
+                xchain_new.head = xchain_old.head
+                xchain_new.tail = xchain_old.tail
+                xchain_new.head_cell = xchain_old.head_cell
+                xchain_new.tail_cell = xchain_old.tail_cell
+                xchain_new.hint = xchain_old.hint
+                return xchain_new
+            global depth
+            depth += 1
+            # print 'Entering, Depth: ' + str(depth),
+            # up_chain.str_links()
+            change = False
+            chain = copy_xchain(up_chain)
+            if len(chain.links) == 0:
+                chain.add_link(strong_set[0], 'Tail')
+                strong_set = strong_set[1:]
+            #extend on head or tail?
+            if len(chain.links) == 1:
+                end_links = [(chain.tail, chain.tail_cell, 'Tail')]
+            else:
+                end_links = [(chain.tail, chain.tail_cell, 'Tail'), (chain.head, chain.head_cell, 'Head')]
+            for tup in end_links:
+                end_link = tup[0]
+                # find free link
+                open_cell = tup[1]
+                end = tup[2]
+                # if last link is strong, we don't care about previous link, find strong or weak link next
+                if end_link.type == 'Strong':
+                    found_links = check_sets(open_cell, strong_set, weak_set)
+                elif end_link.type == 'Weak':
+                    found_links = check_sets(open_cell, strong_set, [])
+                else:
+                    found_links = False
+                if found_links:
+                    for found_link in found_links:
+                        chain.add_link(found_link, end)
+                        if found_link.type == 'Strong':
+                            strong_set_local = []
+                            for link in strong_set:
+                                if link != found_link:
+                                    strong_set_local.append(link)
+                            weak_set_local = weak_set[:]
+                        elif found_link.type == 'Weak':
+                            weak_set_local = []
+                            for link in weak_set:
+                                if link != found_link:
+                                    weak_set_local.append(link)
+                            strong_set_local = strong_set[:]
+                        # Now check for loop
+                        if chain.loop:
+                            change = chain.rules()
+                        # recurse
+                        if change:
+                            return True
+                        elif len(strong_set_local) == 0 and len(chain.links) == 0:
+                            continue
+                        else:
+                            change = build_x_cyc_chain(strong_set_local, weak_set_local, chain)
+                        chain.remove_link(found_link)
+            if len(chain.links) == 1:
+                # strong_set.pop(0)
+                chain.remove_link(chain.links[0])
+                up_chain = XChain()
+                if len(strong_set) > 0:
+                    change = build_x_cyc_chain(strong_set, weak_set, chain)
+            depth -= 1
+            # print 'Exit, Depth: ' + str(depth),
+            # up_chain.str_links()
+            return change
+
+        def build_x_cycle(strong_set_tuple, weak_set):
+            hint = strong_set_tuple[0]
+            strong_set = strong_set_tuple[1]
+            # find subset of strong set that has a match in either strong or weak set for both ends
+            strong_set_links = []
+            for s_pair in strong_set:
+                if (cell_in_set(s_pair[0], s_pair, strong_set) or cell_in_set(s_pair[0], s_pair, weak_set)) and \
+                    (cell_in_set(s_pair[1], s_pair, strong_set) or cell_in_set(s_pair[1], s_pair, weak_set)):
+                    strong_set_links.append(XChain_Link('Strong', hint, s_pair))
+            # find subset of weak set that has a match in either strong or weak set for both ends
+            weak_set_links = []
+            # weak links have to be connected to a strong link on at least one end
+            for w_pair in weak_set:
+                if (cell_in_set(w_pair[0], w_pair, strong_set)) and \
+                    (cell_in_set(w_pair[1], w_pair, strong_set) or cell_in_set(w_pair[1], w_pair, weak_set)) or \
+                    (cell_in_set(w_pair[1], w_pair, strong_set)) and \
+                    (cell_in_set(w_pair[0], w_pair, strong_set) or cell_in_set(w_pair[0], w_pair, weak_set)):
+                    if w_pair not in strong_set:
+                        weak_set_links.append(XChain_Link('Weak', hint, w_pair))
+            chain = XChain()
+            return build_x_cyc_chain(strong_set_links, weak_set_links, chain)
+
+        def find_weak_links(pair_set, hint):
+            lead = pair_set[0]
+            weak_links = []
+            if len(pair_set) < 2:
+                return weak_links
+            for second in pair_set[1:]:
+                # check both components of lead against second for common row/col/sqr
+                for lead_cell in lead:
+                    for second_cell in second:
+                        if (lead_cell.row == second_cell.row or \
+                            lead_cell.col == second_cell.col or \
+                            lead_cell.sqr == second_cell.sqr) and lead_cell != second_cell:
+                            weak_links.append(sorted([lead_cell, second_cell]))
+            return weak_links + find_weak_links(pair_set[1:], hint)
+
+        def find_weak_links2(s_pairs, hint):
+            weak_set = []
+            for pair in s_pairs:
+                for cell in pair:
+                    # find other cells in row, col, sqr with same hint
+                    weak_link_set = [cell.row.cells_with_hint(hint), cell.col.cells_with_hint(hint), cell.sqr.cells_with_hint(hint)]
+                    for set in weak_link_set:
+                        if set == False: continue
+                        for cell2 in set:
+                            if cell != cell2:
+                                new_link = sorted([cell, cell2])
+                                if new_link not in weak_set:
+                                    weak_set.append(new_link)
+            return weak_set
+
+        print 'Checking X-Cycles'
+        # find strong links
+        # pairs come sorted by using dedupe in cell_pairs_by_hint method
+        strong_pairs = self.cell_pairs_by_hint()
+        # do one hint at a time
+        for strong_set in strong_pairs:
+            if len(strong_set[1]) < 2: continue
+            hint = strong_set[0]
+            pairs = strong_set[1]
+            # find weak links
+            weak_set_untested = find_weak_links2(pairs, hint)
+            # eliminate those that are actually strong links
+            weak_set = []
+            for weak_pair in weak_set_untested:
+                if weak_pair not in strong_set[1]:
+                    weak_set.append(weak_pair)
+            if len(weak_set) > 1:
+                # do something interesting
+                global depth
+                depth = 0
+                change = build_x_cycle(strong_set, weak_set)
+                if change:
+                    return True
+        return False
+
+def create_chains(pairs):
+    # create chains
+    """
+    Take a set of cell pairs, create nodes of a chain and color the chains.  Return a list
+      of colored chains
+    @param pairs: list of cell pairs in the form [(hint,[[cell1, cell2],[cell3, cell4]...]),(hint, [[...]
+    @return: list of colored chains in the form[chain,chain,chain ...]
+    """
+    # iterate from here over the 9 sets in 'pairs' and for each one create chains
+    chainSet = []
+    for hintPairSet in pairs:
+        chains = create_simple_chain(hintPairSet)
+        chainSet = chainSet + chains
+    for chain in chainSet:
+        chain.color()
+    return chainSet
+
+def create_medusa_chains(pairs):
+    '''
+    Create a chain using all hints for Medusa strategy
+    @param pairs: list of cell pairs in the form [(hint,[[cell1, cell2],[cell3, cell4]...]),(hint, [[...]
+    @return: list of colored chains in the form[chain,chain,chain ...]
+    '''
+
+def create_simple_chain(hintPairSet):
+    """
+    Takes a list of cell pairs as input, all with the same hint, and creates the chain links
+    First part builds a dictionary that creates a node for each cell, and links that node
+     to each other node where the chain connects
+    Nodes are then extracted from the dictionary into a list
+    Chains are then built from the node list and put into a list of chains, which is returned
+    @param pairs: in the form (hint, [cell1, cell2],[cell3, cell4] ...)
+    @return: chains: in the form [chain1,chain2,chain3,...]
+    """
+    chainDict = {}
+    hint, cellSet = hintPairSet
+    for cellPair in cellSet:
+        for cell in cellPair:
+            if cell not in chainDict:
+                chainDict[cell] = ChainNode(cell)
+        chainDict[cellPair[0]].addLink(chainDict[cellPair[1]])
+        chainDict[cellPair[1]].addLink(chainDict[cellPair[0]])
+    # Convert to a list of nodes
+    nodeSet = []
+    for cell in chainDict:
+        nodeSet.append(chainDict[cell])
+    # now use this nodeSet (set of nodes) to build the chains
+    # take first node in the list, follow and find the set that constitute a chain, then
+    #  remove those nodes from the nodeSet
+    chainSet = []
+    while len(nodeSet):
+        newChain = Chain(hint, nodeSet[0])
+        chainSet.append(newChain)
+        newNodeSet = []
+        for node in nodeSet:
+            if node not in newChain.nodes:
+                newNodeSet.append(node)
+        nodeSet = newNodeSet
+    return chainSet
